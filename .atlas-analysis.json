@@ -1,0 +1,99 @@
+{
+  "projectType": "saas",
+  "projectName": "User Interface Wiki",
+  "projectDescription": "A living manual for better interfaces - comprehensive guides on UI/UX design principles, animation, motion, and web interaction patterns.",
+  "theme": "willow",
+  "primaryColor": "#111113",
+  "lightColor": "#fcfcfc",
+  "darkColor": "#111113",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "contributing"
+            ]
+          },
+          {
+            "group": "Design Principles",
+            "pages": [
+              "principles/laws-of-ux",
+              "principles/design-philosophy"
+            ]
+          },
+          {
+            "group": "Animation & Motion",
+            "pages": [
+              "animation/12-principles-of-animation",
+              "animation/to-spring-or-not-to-spring",
+              "animation/mastering-animate-presence",
+              "animation/animating-container-bounds"
+            ]
+          },
+          {
+            "group": "Visual Design",
+            "pages": [
+              "visual/morphing-icons",
+              "visual/taking-advantage-of-pseudo-elements"
+            ]
+          },
+          {
+            "group": "Sound & Audio",
+            "pages": [
+              "audio/sounds-on-the-web",
+              "audio/generating-sounds-with-ai"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Technical Reference",
+        "groups": [
+          {
+            "group": "Components",
+            "pages": [
+              "technical/component-architecture",
+              "technical/styling-system",
+              "technical/accessibility"
+            ]
+          },
+          {
+            "group": "Advanced Topics",
+            "pages": [
+              "technical/web-audio-api",
+              "technical/motion-implementation",
+              "technical/performance-optimization"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "12 Principles of Animation with interactive demos",
+    "Laws of UX with practical examples",
+    "Interactive playgrounds using Sandpack",
+    "Web Audio API sound generation guides",
+    "Motion and spring animation strategies",
+    "Component architecture with Base UI and Motion",
+    "Pseudo-element techniques for modern CSS",
+    "Icon morphing and visual transformations",
+    "Accessibility-first design patterns"
+  ],
+  "publicApiSurface": [
+    "12 Principles of Animation (Squash & Stretch, Anticipation, Staging, etc.)",
+    "Laws of UX (Fitts's Law, Hick's Law, Miller's Law, Doherty Threshold, Postel's Law)",
+    "AnimatePresence patterns (presence state, manual exit, nested exits)",
+    "Container bounds animation with useMeasure hook",
+    "Web Audio API sound generation",
+    "Morphing icons system",
+    "Pseudo-elements reference (::before, ::after, ::backdrop, ::highlight, etc.)",
+    "Spring vs easing decision framework",
+    "Base UI component patterns",
+    "Motion animation techniques"
+  ]
+}
