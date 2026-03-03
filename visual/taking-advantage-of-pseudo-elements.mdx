@@ -1,0 +1,346 @@
+---
+title: Taking Advantage of Pseudo-Elements
+description: Modern CSS pseudo-elements go far beyond ::before and ::after. From view transitions to scroll markers, these invisible helpers unlock interactions that once required JavaScript.
+---
+
+# Taking Advantage of Pseudo-Elements
+
+Modern CSS pseudo-elements go far beyond `::before` and `::after`. From view transitions to scroll markers, these invisible helpers unlock interactions that once required JavaScript.
+
+## Overview
+
+Most developers know `::before` and `::after`. They're workhorses, used for decorative elements, clearfixes, and the occasional icon. But CSS has quietly shipped a new generation of pseudo-elements that do far more than add visual flair.
+
+These newer pseudo-elements give you direct styling hooks into browser-native features. Dialogs, popovers, view transitions, scroll-driven navigation, form pickers. Things that once required JavaScript wrappers or couldn't be styled at all.
+
+This guide covers the pseudo-elements worth knowing, when to reach for them, and how they change what's possible with CSS alone.
+
+## The Classics
+
+Before diving into the new, it helps to revisit what we already have. These pseudo-elements have been around for years, but they remain foundational.
+
+<Accordion title="::before & ::after">
+
+### ::before & ::after
+
+These create anonymous inline elements as the first or last child of their parent. They require content to render, even if it's empty.
+
+The common use cases are decorative layers, icons, separators, and expanding hit targets without adding DOM nodes. They keep your HTML clean while enabling visual complexity.
+
+#### Button Hover Effect Pattern
+
+One pattern worth using constantly is adding a subtle background hover effect:
+
+```css
+.button {
+  position: relative;
+  /* other button styles */
+}
+
+.button::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--gray-a3);
+  border-radius: inherit;
+  opacity: 0;
+  transform: scale(0.95);
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
+}
+
+.button:hover::before {
+  opacity: 1;
+  transform: scale(1);
+}
+```
+
+The `::before` element fills the button with `position: absolute` and `inset: 0`. By default it's scaled down and invisible. On hover, it animates to full scale and opacity, creating a nice tactile feel without extra markup.
+
+#### Key Properties
+
+- **Required**: `content` property (even if empty string)
+- **Position**: Creates anonymous inline element
+- **Use cases**: Decorative layers, icons, expanded hit targets
+- **Browser support**: Universal
+
+</Accordion>
+
+<Accordion title="::backdrop">
+
+### ::backdrop
+
+The `::backdrop` pseudo-element appears behind `<dialog>` and fullscreen elements. It's the layer between the element and the rest of the page.
+
+Style it to control the appearance of modal overlays:
+
+```css
+dialog::backdrop {
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+}
+```
+
+This creates a semi-transparent backdrop with a blur effect, focusing attention on the dialog content.
+
+#### Key Properties
+
+- **Elements**: `<dialog>`, fullscreen elements
+- **Layer**: Positioned between element and page
+- **Use cases**: Modal overlays, fullscreen backgrounds
+- **Browser support**: Modern browsers (check for `backdrop-filter`)
+
+</Accordion>
+
+<Accordion title="::highlight()">
+
+### ::highlight()
+
+The `::highlight()` pseudo-element styles custom text highlights created via the CSS Custom Highlight API. Unlike `::selection`, you can create multiple named highlights.
+
+```css
+::highlight(search-result) {
+  background-color: var(--yellow-a5);
+  color: var(--gray-12);
+}
+
+::highlight(active-result) {
+  background-color: var(--blue-a5);
+  color: var(--gray-12);
+}
+```
+
+This enables features like search result highlighting, code syntax highlighting, or collaborative text selection without modifying the DOM.
+
+#### Key Properties
+
+- **API**: Requires JavaScript Custom Highlight API
+- **Multiple highlights**: Can define different named highlights
+- **Use cases**: Search results, syntax highlighting, collaborative editing
+- **Browser support**: Modern browsers (check MDN)
+
+</Accordion>
+
+<Accordion title="::selection">
+
+### ::selection
+
+The `::selection` pseudo-element styles text selected by the user:
+
+```css
+::selection {
+  background: var(--blue-a5);
+  color: var(--gray-12);
+}
+```
+
+Keep it simple—only background, color, and text-related properties work.
+
+#### Key Properties
+
+- **Applies to**: User text selections
+- **Allowed properties**: background, color, text-decoration, text-shadow
+- **Use cases**: Brand-consistent text selection
+- **Browser support**: Universal
+
+</Accordion>
+
+<Accordion title="::placeholder">
+
+### ::placeholder
+
+The `::placeholder` pseudo-element styles placeholder text in form inputs:
+
+```css
+input::placeholder {
+  color: var(--gray-a9);
+  opacity: 1;
+}
+```
+
+Note that some browsers apply default opacity, so set it explicitly if needed.
+
+#### Key Properties
+
+- **Elements**: `<input>`, `<textarea>` with placeholder attribute
+- **Allowed properties**: color, font, opacity, text properties
+- **Use cases**: Styled placeholder text
+- **Browser support**: Universal
+
+</Accordion>
+
+## Modern Pseudo-Elements
+
+These newer pseudo-elements unlock powerful styling capabilities for browser-native features.
+
+<Accordion title="View Transition Pseudo-Elements">
+
+### View Transition Pseudo-Elements
+
+The View Transitions API lets you animate between DOM states. Click a thumbnail, it morphs into a full-screen image. Navigate between pages, elements glide into their new positions. The API handles the snapshot diffing. You control the animation through pseudo-elements.
+
+When you call `document.startViewTransition()`, the browser captures the current state, applies your DOM changes, then generates a tree of pseudo-elements representing both states. You style these to define how elements transition.
+
+#### Available Pseudo-Elements
+
+```
+::view-transition
+└─ ::view-transition-group(name)
+   └─ ::view-transition-image-pair(name)
+      ├─ ::view-transition-old(name)
+      └─ ::view-transition-new(name)
+```
+
+#### Image Lightbox Example
+
+Here's how to create a morphing image lightbox:
+
+```tsx
+const open = () => {
+  const sourceImg = cardRef.current?.querySelector("img");
+  const clone = cardRef.current?.cloneNode(true);
+  
+  // Mark source image with transition name
+  if (sourceImg) sourceImg.style.viewTransitionName = "card";
+  
+  const run = () => {
+    // Transfer name to cloned image in dialog
+    if (sourceImg) sourceImg.style.viewTransitionName = "";
+    const dialogImg = clone?.querySelector("img");
+    if (dialogImg) dialogImg.style.viewTransitionName = "card";
+    
+    dialogRef.current?.append(clone);
+    dialogRef.current?.showModal();
+  };
+  
+  document.startViewTransition?.(run) ?? run();
+};
+```
+
+#### Styling the Transition
+
+```css
+::view-transition-group(card) {
+  animation-duration: 300ms;
+  animation-timing-function: cubic-bezier(0.215, 0.61, 0.355, 1);
+}
+```
+
+This pseudo-element targets the group containing both snapshots. The browser handles position and size interpolation automatically.
+
+#### How It Works
+
+1. **view-transition-name**: Assign the same name to elements across states
+2. **Transition callback**: Update the DOM inside `startViewTransition()`
+3. **Browser magic**: Interpolates between matched elements
+4. **Style control**: Use pseudo-elements to customize timing and effects
+
+When two elements share the same `view-transition-name` across a transition, the browser treats them as the same element and interpolates between their positions, sizes, and styles.
+
+Prior to view transitions, this effect required complex JavaScript libraries or manual cloning. Now, with just a few lines of CSS, you get smooth, performant animations handled natively by the browser.
+
+#### Key Properties
+
+- **API**: `document.startViewTransition()`
+- **Pseudo-elements**: `::view-transition-group()`, `::view-transition-image-pair()`, etc.
+- **Use cases**: Page transitions, image lightboxes, animated navigation
+- **Browser support**: Chrome, Edge (check MDN for updates)
+
+</Accordion>
+
+<Accordion title="::marker">
+
+### ::marker
+
+The `::marker` pseudo-element styles list item markers (`<li>`, `<summary>`):
+
+```css
+li::marker {
+  color: var(--blue-11);
+  font-weight: var(--font-weight-bold);
+}
+```
+
+You can also use custom content:
+
+```css
+li::marker {
+  content: "→ ";
+}
+```
+
+#### Key Properties
+
+- **Elements**: `<li>`, `<summary>`, `display: list-item`
+- **Allowed properties**: color, font, content, some animation properties
+- **Use cases**: Styled list bullets, custom markers
+- **Browser support**: Modern browsers
+
+</Accordion>
+
+<Accordion title="::slotted()">
+
+### ::slotted()
+
+The `::slotted()` pseudo-element styles elements distributed into Web Component slots:
+
+```css
+/* Inside shadow DOM stylesheet */
+::slotted(button) {
+  background: var(--gray-3);
+  border-radius: 8px;
+}
+```
+
+This only works inside Shadow DOM and can only target direct children of the slot.
+
+#### Key Properties
+
+- **Context**: Shadow DOM only
+- **Scope**: Direct children of `<slot>`
+- **Use cases**: Web Component styling
+- **Browser support**: Modern browsers
+
+</Accordion>
+
+<Accordion title="::details-content">
+
+### ::details-content
+
+The `::details-content` pseudo-element (experimental) wraps the content of a `<details>` element, enabling smooth animations:
+
+```css
+details::details-content {
+  height: 0;
+  overflow: hidden;
+  transition: height 0.3s ease;
+}
+
+details[open]::details-content {
+  height: auto;
+}
+```
+
+This is still experimental but shows the direction CSS is heading for animating native elements.
+
+#### Key Properties
+
+- **Element**: `<details>`
+- **Status**: Experimental
+- **Use cases**: Animated accordions
+- **Browser support**: Limited (check MDN)
+
+</Accordion>
+
+## Wrapping Up
+
+These modern pseudo-elements unlock powerful new capabilities in CSS. From animating view transitions to styling native UI components, they reduce the need for JavaScript and keep your code cleaner.
+
+As browser support grows, mastering these tools will be essential for building rich, interactive web experiences with CSS.
+
+Sometimes you don't need to install a library. The browser has you covered.
+
+## Further Reading
+
+For detailed specifications and browser support, check the [MDN Pseudo-elements Reference](https://developer.mozilla.org/en-US/docs/Web/CSS/Pseudo-elements).

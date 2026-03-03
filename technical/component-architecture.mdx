@@ -1,0 +1,412 @@
+---
+title: Component Architecture
+description: Component structure patterns, file organization, and colocated styles in the User Interface Wiki codebase
+---
+
+## Overview
+
+Components in this project follow a strict organizational pattern that emphasizes consistency, maintainability, and developer experience. Every component lives in its own directory with colocated CSS modules and follows kebab-case naming conventions.
+
+## Directory Structure
+
+Each component lives in its own directory within `/components/` with the following pattern:
+
+```
+components/
+  button/
+    index.tsx          # Component implementation
+    styles.module.css  # Scoped styles
+  callout/
+    index.tsx
+    styles.module.css
+  figure/
+    index.tsx
+    styles.module.css
+    utils.ts           # Component-specific utilities (if needed)
+```
+
+### Key Principles
+
+- **One component per directory**: Each component gets its own folder named in kebab-case
+- **Named exports from `index.tsx`**: Always export components using named exports, never default exports
+- **Colocated styles**: CSS modules live alongside components with the name `styles.module.css`
+- **Colocated utilities**: Component-specific utilities can be added to the component directory
+
+## Naming Conventions
+
+<Callout type="info">
+  All file and directory names use **kebab-case** throughout the project. The only exception is React component function names, which use PascalCase.
+</Callout>
+
+### Examples
+
+<CodeGroup>
+
+```tsx title="Correct: Named export from index.tsx"
+// components/button/index.tsx
+interface ButtonProps {
+  variant?: "primary" | "secondary" | "ghost" | "text";
+  children: ReactNode;
+}
+
+function Button({ variant = "primary", children }: ButtonProps) {
+  return (
+    <button className={clsx(styles.button, styles[variant])}>
+      {children}
+    </button>
+  );
+}
+
+export { Button };
+```
+
+```tsx title="Incorrect: Default export, wrong filename"
+// components/button.tsx ❌ Wrong filename
+export default function Button(props) { ... } // ❌ Default export, no types
+```
+
+</CodeGroup>
+
+## Component Definition Patterns
+
+### Function Declarations with Explicit Interfaces
+
+Always use function declarations (not arrow functions) with explicit TypeScript interfaces:
+
+```tsx title="components/button/index.tsx"
+"use client";
+
+import { Button as BaseButton } from "@base-ui/react/button";
+import clsx from "clsx";
+import { motion } from "motion/react";
+import type React from "react";
+
+import styles from "./styles.module.css";
+
+const MotionBaseButton = motion.create(BaseButton);
+
+interface ButtonProps
+  extends React.ComponentPropsWithoutRef<typeof MotionBaseButton> {
+  variant?: "primary" | "secondary" | "ghost" | "text";
+  size?: "small" | "medium" | "large";
+  aspect?: "default" | "square";
+  radius?: "none" | "small" | "medium" | "large" | "full";
+}
+
+function Button({
+  className,
+  variant = "primary",
+  size = "medium",
+  aspect = "default",
+  radius,
+  ...props
+}: ButtonProps) {
+  return (
+    <MotionBaseButton
+      className={clsx(
+        styles.button,
+        styles[size],
+        styles[variant],
+        aspect === "square" && styles.square,
+        radius && styles[`radius-${radius}`],
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+export { Button };
+```
+
+### Data Attributes for Variants
+
+Use data attributes instead of multiple className conditionals for cleaner variant styling:
+
+<CodeGroup>
+
+```tsx title="Component"
+interface CalloutProps {
+  type?: "info" | "warn" | "error" | "success" | "idea";
+  title?: string;
+  children: ReactNode;
+}
+
+function Callout({ type = "info", title, children }: CalloutProps) {
+  return (
+    <div className={styles.callout} data-variant={type}>
+      {title ? <div className={styles.title}>{title}</div> : null}
+      {children}
+    </div>
+  );
+}
+```
+
+```css title="styles.module.css"
+.callout {
+  padding: 12px 14px;
+  background: var(--gray-2);
+  border: 1px solid var(--gray-4);
+  border-radius: var(--prose-block-radius);
+}
+
+.callout[data-variant="info"] {
+  background: var(--blue-2);
+  border-color: var(--blue-6);
+}
+
+.callout[data-variant="error"] {
+  background: var(--red-2);
+  border-color: var(--red-6);
+}
+```
+
+</CodeGroup>
+
+This pattern is cleaner than using `clsx` with multiple conditional classes and keeps the variant logic in CSS.
+
+## Client vs Server Components
+
+### When to Use "use client"
+
+Only add the `"use client"` directive when the component needs client-side features:
+
+<ParamField path="React hooks" type="required">
+  Components using `useState`, `useEffect`, `useRef`, etc.
+</ParamField>
+
+<ParamField path="Browser APIs" type="required">
+  Access to `window`, `localStorage`, `document`, etc.
+</ParamField>
+
+<ParamField path="Event handlers" type="required">
+  Components with `onClick`, `onChange`, or other interactive events
+</ParamField>
+
+<ParamField path="Animation libraries" type="required">
+  Using Motion (Framer Motion) or other animation libraries
+</ParamField>
+
+### Examples
+
+<CodeGroup>
+
+```tsx title="Client Component (interactive)"
+"use client"; // ✅ Needed for useState and event handlers
+
+import { useState } from "react";
+import styles from "./styles.module.css";
+
+function Button({ onClick, children }: ButtonProps) {
+  const [isPressed, setIsPressed] = useState(false);
+  
+  return (
+    <button 
+      className={styles.button}
+      onClick={onClick}
+      onMouseDown={() => setIsPressed(true)}
+      onMouseUp={() => setIsPressed(false)}
+    >
+      {children}
+    </button>
+  );
+}
+```
+
+```tsx title="Server Component (static)"
+// ✅ No "use client" directive needed
+
+import styles from "./styles.module.css";
+
+function Card({ title, description }: CardProps) {
+  return (
+    <div className={styles.card}>
+      <h3>{title}</h3>
+      <p>{description}</p>
+    </div>
+  );
+}
+```
+
+</CodeGroup>
+
+## Integration with Base UI
+
+The project uses [Base UI](https://base-ui.com/) for headless component primitives. Components wrap Base UI components to add styling and project-specific behavior:
+
+```tsx title="components/popover/index.tsx"
+import { Popover as BasePopover } from "@base-ui/react/popover";
+import styles from "./styles.module.css";
+
+interface PopoverRootProps
+  extends React.ComponentPropsWithoutRef<typeof BasePopover.Root> {}
+  
+function PopoverRoot({ onOpenChange, ...props }: PopoverRootProps) {
+  return <BasePopover.Root onOpenChange={onOpenChange} {...props} />;
+}
+
+interface PopoverTriggerProps
+  extends React.ComponentPropsWithoutRef<typeof BasePopover.Trigger> {}
+  
+function PopoverTrigger({ ...props }: PopoverTriggerProps) {
+  return <BasePopover.Trigger className={styles.trigger} {...props} />;
+}
+
+interface PopoverPopupProps
+  extends React.ComponentPropsWithoutRef<typeof BasePopover.Popup> {}
+  
+function PopoverPopup({ ...props }: PopoverPopupProps) {
+  return <BasePopover.Popup className={styles.popup} {...props} />;
+}
+
+export const Popover = {
+  Root: PopoverRoot,
+  Trigger: PopoverTrigger,
+  Popup: PopoverPopup,
+};
+```
+
+### Usage
+
+```tsx
+import { Popover } from "@/components/popover";
+
+<Popover.Root>
+  <Popover.Trigger>Open</Popover.Trigger>
+  <Popover.Popup>
+    Content goes here
+  </Popover.Popup>
+</Popover.Root>
+```
+
+## Motion Integration
+
+Use `motion.create()` to wrap Base UI components with animation capabilities:
+
+```tsx
+import { Button as BaseButton } from "@base-ui/react/button";
+import { motion } from "motion/react";
+
+const MotionBaseButton = motion.create(BaseButton);
+
+function Button(props: ButtonProps) {
+  return (
+    <MotionBaseButton
+      whileTap={{ scale: 0.98 }}
+      transition={{ duration: 0.18 }}
+      {...props}
+    />
+  );
+}
+```
+
+See [Motion Implementation](/technical/motion-implementation) for motion timing and easing guidelines.
+
+## Import Patterns
+
+Use path aliases from `tsconfig.json` for clean imports:
+
+<CodeGroup>
+
+```tsx title="Correct: Using path aliases"
+import { Button } from "@/components/button";
+import { sounds } from "@/lib/sounds";
+import { ChevronIcon } from "@/icons";
+```
+
+```tsx title="Incorrect: Relative paths"
+import { Button } from "../../../components/button";
+import { sounds } from "../../lib/sounds";
+```
+
+</CodeGroup>
+
+## Type Definitions
+
+### Component-Specific Types
+
+Define component props interfaces in the same file:
+
+```tsx
+interface ButtonProps {
+  variant?: "primary" | "secondary" | "ghost" | "text";
+  size?: "small" | "medium" | "large";
+  children: ReactNode;
+}
+```
+
+### Shared Types
+
+Define shared types in `/lib/types.ts`:
+
+```tsx title="lib/types.ts"
+export interface Author {
+  name: string;
+  avatar: string;
+  url?: string;
+}
+
+export interface Article {
+  title: string;
+  slug: string;
+  author: Author;
+  publishedAt: string;
+}
+```
+
+## Content Components
+
+MDX content uses the same organizational pattern with colocated demos:
+
+```
+content/
+  12-principles-of-animation/
+    index.mdx           # Article content
+    demos/
+      index.ts          # Barrel export for all demos
+      squash-stretch/
+        index.tsx
+        styles.module.css
+      anticipation/
+        index.tsx
+        styles.module.css
+```
+
+### Demo Export Pattern
+
+```ts title="content/12-principles-of-animation/demos/index.ts"
+export { SquashStretchDemo } from "./squash-stretch";
+export { AnticipationDemo } from "./anticipation";
+```
+
+```mdx title="content/12-principles-of-animation/index.mdx"
+import { SquashStretchDemo, AnticipationDemo } from "./demos";
+
+<Figure>
+  <SquashStretchDemo />
+  <Caption>Squash and stretch adds weight and flexibility to objects</Caption>
+</Figure>
+```
+
+## Best Practices
+
+<Callout type="success" title="Component Organization">
+  - Keep components small and focused on a single responsibility
+  - Colocate styles, utilities, and tests with components
+  - Use TypeScript interfaces for all props, no `any` types
+  - Export using named exports, not default exports
+</Callout>
+
+<Callout type="success" title="File Naming">
+  - All files and directories use kebab-case: `button-group/`, `use-audio.ts`
+  - Component implementation is always `index.tsx`
+  - Styles are always `styles.module.css`
+  - React functions use PascalCase: `function Button()`
+</Callout>
+
+<Callout type="success" title="Type Safety">
+  - Always define explicit prop interfaces
+  - Avoid `any` type, use `unknown` when type is uncertain
+  - Extend base component props when wrapping libraries
+  - Use strict TypeScript configuration
+</Callout>

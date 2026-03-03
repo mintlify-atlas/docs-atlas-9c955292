@@ -1,0 +1,474 @@
+---
+title: Web Audio API Implementation
+description: Deep dive into procedural sound generation using the Web Audio API for UI feedback
+icon: 'volume-2'
+---
+
+# Web Audio API Implementation
+
+This guide explores the production Web Audio API implementation used throughout the User Interface Wiki for procedural sound generation. All sound effects are synthesized in real-time using oscillators, noise generators, and audio processing nodes.
+
+## Architecture
+
+### AudioContext Management
+
+The implementation uses a singleton pattern to manage the AudioContext lifecycle:
+
+```typescript lib/sounds.ts
+let audioContext: AudioContext | null = null;
+
+function getAudioContext(): AudioContext {
+  if (!audioContext) {
+    audioContext = new AudioContext();
+  }
+  if (audioContext.state === "suspended") {
+    audioContext.resume();
+  }
+  return audioContext;
+}
+```
+
+<Warning>
+  The AudioContext may be suspended by browser autoplay policies. Always resume the context on user interaction.
+</Warning>
+
+## Sound Synthesis Patterns
+
+### Click Sound: Filtered Noise
+
+Short burst of filtered noise for immediate tactile feedback:
+
+```typescript lib/sounds.ts
+click: () => {
+  try {
+    const ctx = getAudioContext();
+    const t = ctx.currentTime;
+
+    // Generate white noise buffer
+    const noise = ctx.createBufferSource();
+    const buf = ctx.createBuffer(1, ctx.sampleRate * 0.008, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.exp(-i / 50);
+    }
+    noise.buffer = buf;
+
+    // Bandpass filter for tonal character
+    const filter = ctx.createBiquadFilter();
+    filter.type = "bandpass";
+    filter.frequency.value = 4000 + Math.random() * 1000;
+    filter.Q.value = 3;
+
+    const gain = ctx.createGain();
+    gain.gain.value = 0.5 + Math.random() * 0.15;
+
+    // Connect audio graph
+    noise.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+    noise.start(t);
+  } catch {}
+}
+```
+
+**Key Techniques:**
+- Exponential decay envelope: `Math.exp(-i / 50)`
+- Random frequency variation: `4000 + Math.random() * 1000`
+- Short duration: 8ms buffer
+
+### Pop Sound: Frequency Sweep
+
+Smooth frequency glide for non-destructive feedback:
+
+```typescript lib/sounds.ts
+pop: () => {
+  const ctx = getAudioContext();
+  const t = ctx.currentTime;
+
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+
+  osc.type = "sine";
+  osc.frequency.setValueAtTime(400, t);
+  osc.frequency.exponentialRampToValueAtTime(150, t + 0.04);
+
+  gain.gain.setValueAtTime(0.35, t);
+  gain.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start(t);
+  osc.stop(t + 0.05);
+}
+```
+
+**Parameters:**
+- Start frequency: 400 Hz
+- End frequency: 150 Hz
+- Duration: 50ms
+- Envelope: Exponential decay
+
+### Success Sound: Arpeggio Sequence
+
+Musical phrase conveying positive outcome:
+
+```typescript lib/sounds.ts
+success: () => {
+  const ctx = getAudioContext();
+  const t = ctx.currentTime;
+
+  const notes = [523.25, 659.25, 783.99]; // C5, E5, G5
+  const spacing = 0.08;
+
+  notes.forEach((freq, i) => {
+    const osc = ctx.createOscillator();
+    const osc2 = ctx.createOscillator();
+    const gain = ctx.createGain();
+    const filter = ctx.createBiquadFilter();
+
+    osc.type = "triangle";
+    osc.frequency.value = freq;
+    osc2.type = "sine";
+    osc2.frequency.value = freq * 2; // Octave harmonic
+
+    filter.type = "lowpass";
+    filter.frequency.value = 3000;
+
+    const start = t + i * spacing;
+    const duration = 0.15;
+
+    gain.gain.setValueAtTime(0, start);
+    gain.gain.linearRampToValueAtTime(0.25, start + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.001, start + duration);
+
+    osc.connect(gain);
+    osc2.connect(gain);
+    gain.connect(filter);
+    filter.connect(ctx.destination);
+
+    osc.start(start);
+    osc2.start(start);
+    osc.stop(start + duration);
+    osc2.stop(start + duration);
+  });
+
+  // Shimmer finish
+  const shimmer = ctx.createOscillator();
+  const shimmerGain = ctx.createGain();
+  shimmer.type = "sine";
+  shimmer.frequency.value = 1046.5; // C6
+  shimmerGain.gain.setValueAtTime(0, t + 0.24);
+  shimmerGain.gain.linearRampToValueAtTime(0.15, t + 0.26);
+  shimmerGain.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
+  shimmer.connect(shimmerGain);
+  shimmerGain.connect(ctx.destination);
+  shimmer.start(t + 0.24);
+  shimmer.stop(t + 0.45);
+}
+```
+
+**Musical Structure:**
+- Notes: C major triad (C5, E5, G5)
+- Timing: 80ms spacing between notes
+- Harmonics: Fundamental + octave doubling
+- Finish: High shimmer at C6
+
+### Error Sound: Distorted Dissonance
+
+Harsh tone conveying failure:
+
+```typescript lib/sounds.ts
+error: () => {
+  const ctx = getAudioContext();
+  const t = ctx.currentTime;
+
+  const osc1 = ctx.createOscillator();
+  const osc2 = ctx.createOscillator();
+  const gain = ctx.createGain();
+  const distortion = ctx.createWaveShaper();
+
+  // Waveshaper curve for distortion
+  const curve = new Float32Array(256);
+  for (let i = 0; i < 256; i++) {
+    const x = i / 128 - 1;
+    curve[i] = Math.tanh(x * 2);
+  }
+  distortion.curve = curve;
+
+  // Detuned oscillators create beating
+  osc1.type = "sawtooth";
+  osc1.frequency.setValueAtTime(180, t);
+  osc1.frequency.exponentialRampToValueAtTime(80, t + 0.25);
+
+  osc2.type = "square";
+  osc2.frequency.setValueAtTime(190, t);
+  osc2.frequency.exponentialRampToValueAtTime(85, t + 0.25);
+
+  gain.gain.setValueAtTime(0, t);
+  gain.gain.linearRampToValueAtTime(0.3, t + 0.02);
+  gain.gain.setValueAtTime(0.3, t + 0.08);
+  gain.gain.linearRampToValueAtTime(0.25, t + 0.1);
+  gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+
+  const filter = ctx.createBiquadFilter();
+  filter.type = "lowpass";
+  filter.frequency.value = 800;
+
+  osc1.connect(distortion);
+  osc2.connect(distortion);
+  distortion.connect(gain);
+  gain.connect(filter);
+  filter.connect(ctx.destination);
+
+  osc1.start(t);
+  osc2.start(t);
+  osc1.stop(t + 0.3);
+  osc2.stop(t + 0.3);
+}
+```
+
+**Dissonance Techniques:**
+- Detuned oscillators: 180 Hz vs 190 Hz (beating effect)
+- WaveShaper distortion: `tanh` transfer function
+- Frequency glide downward
+- Lowpass filter at 800 Hz
+
+## Audio Graph Patterns
+
+### Node Connection Best Practices
+
+<Tabs items={['Basic', 'Filtered', 'Multi-Voice']}>
+  <Tab value="Basic">
+    ```typescript
+    // Simple oscillator → gain → destination
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    ```
+  </Tab>
+  <Tab value="Filtered">
+    ```typescript
+    // Oscillator → filter → gain → destination
+    const osc = ctx.createOscillator();
+    const filter = ctx.createBiquadFilter();
+    const gain = ctx.createGain();
+    
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+    ```
+  </Tab>
+  <Tab value="Multi-Voice">
+    ```typescript
+    // Multiple sources → shared processing
+    const osc1 = ctx.createOscillator();
+    const osc2 = ctx.createOscillator();
+    const gain = ctx.createGain();
+    
+    osc1.connect(gain);
+    osc2.connect(gain);
+    gain.connect(ctx.destination);
+    ```
+  </Tab>
+</Tabs>
+
+### Envelope Shaping
+
+**Linear vs Exponential Ramps:**
+
+```typescript
+// Linear: Constant rate of change
+gain.gain.linearRampToValueAtTime(0.5, t + 0.1);
+
+// Exponential: Natural-sounding decay
+gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+```
+
+<Warning>
+  Exponential ramps cannot reach zero. Use 0.001 as the target value instead.
+</Warning>
+
+**Attack-Decay-Sustain-Release (ADSR):**
+
+```typescript
+const t = ctx.currentTime;
+const attack = 0.01;
+const decay = 0.05;
+const sustain = 0.7;
+const release = 0.1;
+
+gain.gain.setValueAtTime(0, t);
+gain.gain.linearRampToValueAtTime(1, t + attack);
+gain.gain.exponentialRampToValueAtTime(sustain, t + attack + decay);
+gain.gain.setValueAtTime(sustain, t + duration - release);
+gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
+```
+
+## Performance Considerations
+
+### Memory Management
+
+```typescript
+// ✅ Good: Reuse AudioContext
+const ctx = getAudioContext();
+
+// ❌ Bad: Create new context per sound
+const ctx = new AudioContext();
+```
+
+### Error Handling
+
+All sound functions wrap Web Audio code in try-catch blocks:
+
+```typescript
+sounds = {
+  click: () => {
+    try {
+      // Web Audio code
+    } catch {}
+  }
+}
+```
+
+**Rationale:**
+- Browsers may not support Web Audio
+- AudioContext may fail to resume
+- Sounds should never break functionality
+
+### Buffer Generation
+
+```typescript
+// Efficient: Generate once, reuse buffer
+const buf = ctx.createBuffer(1, ctx.sampleRate * 0.008, ctx.sampleRate);
+const data = buf.getChannelData(0);
+for (let i = 0; i < data.length; i++) {
+  data[i] = (Math.random() * 2 - 1) * Math.exp(-i / 50);
+}
+noise.buffer = buf;
+```
+
+## Integration with React
+
+### Button Component
+
+```typescript components/button/index.tsx
+import { sounds } from "@/lib/sounds";
+
+function Button({ sound = true, onClick, ...props }: ButtonProps) {
+  const handleClick: typeof onClick = (event) => {
+    if (sound) {
+      sounds.click();
+    }
+    onClick?.(event);
+  };
+
+  return <BaseButton onClick={handleClick} {...props} />;
+}
+```
+
+### Context-Specific Sounds
+
+```typescript
+// Success action
+onSubmit={() => {
+  sounds.success();
+  // ... success logic
+}}
+
+// Error handling
+onError={() => {
+  sounds.error();
+  // ... error logic
+}}
+
+// State toggle
+onToggle={() => {
+  sounds.toggle();
+  // ... toggle logic
+}}
+```
+
+## Browser Compatibility
+
+<Warning>
+  Safari requires user gesture to unlock AudioContext. The implementation automatically resumes suspended contexts on first interaction.
+</Warning>
+
+All major browsers support Web Audio API:
+- Chrome/Edge: Full support
+- Firefox: Full support
+- Safari: Full support (requires gesture unlock)
+- Mobile browsers: Full support
+
+## Advanced Techniques
+
+### Frequency Randomization
+
+Add subtle variation to prevent repetition fatigue:
+
+```typescript
+filter.frequency.value = 4000 + Math.random() * 1000;
+```
+
+### Gain Randomization
+
+Simulate natural variation in interaction force:
+
+```typescript
+gain.gain.value = 0.5 + Math.random() * 0.15;
+```
+
+### Noise Envelopes
+
+```typescript
+// Sharp attack, fast decay
+data[i] = (Math.random() * 2 - 1) * Math.exp(-i / 50);
+
+// Smooth bell curve
+const env = Math.sin((i / data.length) * Math.PI);
+data[i] = (Math.random() * 2 - 1) * env;
+```
+
+## Reference
+
+### Filter Types
+
+| Type | Use Case |
+|------|----------|
+| `lowpass` | Dull harsh sounds, isolate bass |
+| `highpass` | Remove rumble, emphasize brightness |
+| `bandpass` | Isolate mid-range, telephone effect |
+| `notch` | Remove specific frequency |
+| `peaking` | Boost/cut specific frequency |
+
+### Oscillator Types
+
+| Type | Character |
+|------|----------|
+| `sine` | Pure, smooth, gentle |
+| `triangle` | Warm, hollow |
+| `square` | Bright, harsh, retro |
+| `sawtooth` | Buzzy, aggressive |
+
+### Timing Guidelines
+
+| Sound Type | Duration | Use Case |
+|------------|----------|----------|
+| Click/Tick | 4-15ms | Immediate feedback |
+| Pop/Confirm | 40-60ms | State change confirmation |
+| Success | 300-500ms | Task completion |
+| Error | 250-300ms | Attention without alarm |
+| Warning | 200-300ms | Alert with repeat |
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Motion Implementation" icon="sparkles" href="/technical/motion-implementation">
+    Explore advanced animation patterns with Motion
+  </Card>
+  <Card title="Performance Optimization" icon="zap" href="/technical/performance-optimization">
+    Learn bundle size and runtime optimization techniques
+  </Card>
+</CardGroup>

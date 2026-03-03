@@ -1,0 +1,789 @@
+---
+title: Performance Optimization
+description: Performance standards for Next.js 16, React 19, and React Compiler optimization techniques
+icon: 'zap'
+---
+
+# Performance Optimization
+
+This guide documents the performance optimization standards and techniques used in the User Interface Wiki, leveraging Next.js 16, React 19, and the React Compiler.
+
+## Tech Stack Performance Features
+
+### Next.js 16
+
+- App Router with automatic code splitting
+- Server Components by default
+- Optimized image loading with `next/image`
+- Route prefetching
+- Partial Prerendering (PPR)
+
+### React 19
+
+- Automatic batching
+- Improved hydration
+- Concurrent rendering
+- Server Components support
+- Transitions API
+
+### React Compiler
+
+- Automatic memoization
+- Optimized re-renders
+- No manual `useMemo`/`useCallback` needed
+- Dead code elimination
+
+<Warning>
+  With React Compiler enabled, manual memoization with `useMemo`, `useCallback`, and `React.memo` is unnecessary and may interfere with compiler optimizations.
+</Warning>
+
+## Image Optimization
+
+### Next.js Image Component
+
+Always use the Next.js Image component for optimal loading:
+
+```typescript
+import Image from "next/image";
+
+function Article() {
+  return (
+    <Image
+      src="/content/image.jpg"
+      alt="Descriptive alt text"
+      width={640}
+      height={360}
+      quality={90}
+      priority={false}
+    />
+  );
+}
+```
+
+**Benefits:**
+- Automatic WebP/AVIF format conversion
+- Responsive image sizes
+- Lazy loading by default
+- Blur placeholder support
+- Prevents layout shift
+
+### Image Configuration
+
+```typescript next.config.js
+module.exports = {
+  images: {
+    formats: ['image/avif', 'image/webp'],
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+  },
+};
+```
+
+### Priority Images
+
+Mark above-the-fold images as priority:
+
+```typescript
+<Image
+  src="/hero.jpg"
+  alt="Hero image"
+  width={1200}
+  height={600}
+  priority={true}
+/>
+```
+
+### Blur Placeholders
+
+```typescript
+<Image
+  src="/content/image.jpg"
+  alt="Description"
+  width={640}
+  height={360}
+  placeholder="blur"
+  blurDataURL="data:image/jpeg;base64,..."
+/>
+```
+
+<Warning>
+  Never use native `<img>` tags for content images. The Next.js Image component provides significant performance benefits.
+</Warning>
+
+## Dynamic Imports
+
+### Component Code Splitting
+
+Lazy-load heavy components that aren't immediately visible:
+
+```typescript
+import dynamic from "next/dynamic";
+
+const HeavyComponent = dynamic(
+  () => import("./heavy-component").then(m => m.HeavyComponent),
+  {
+    ssr: false,
+    loading: () => <Spinner />
+  }
+);
+
+function Page() {
+  return (
+    <div>
+      <HeavyComponent />
+    </div>
+  );
+}
+```
+
+**Use Cases:**
+- Interactive demos
+- Chart/visualization libraries
+- Rich text editors
+- Video players
+- Animation-heavy components
+
+### Named Export Imports
+
+```typescript
+// ✅ Specific component import
+const Chart = dynamic(
+  () => import("./chart").then(m => m.Chart)
+);
+
+// ❌ Default export (less explicit)
+const Chart = dynamic(() => import("./chart"));
+```
+
+### Client-Only Components
+
+```typescript
+const ClientComponent = dynamic(
+  () => import("./client-component").then(m => m.ClientComponent),
+  { ssr: false }
+);
+```
+
+**When to use `ssr: false`:**
+- Components using browser APIs (`window`, `localStorage`)
+- Animation-heavy components
+- Third-party widgets
+- Components with hydration mismatches
+
+## Bundle Size Optimization
+
+### Analyzing Bundle Size
+
+```bash
+npx @next/bundle-analyzer
+```
+
+### Tree Shaking
+
+Use named imports to enable tree shaking:
+
+<Tabs items={['Correct', 'Incorrect']}>
+  <Tab value="Correct">
+    ```typescript
+    // ✅ Tree-shakeable named imports
+    import { motion, AnimatePresence } from "motion/react";
+    import { Button } from "@/components/button";
+    ```
+  </Tab>
+  <Tab value="Incorrect">
+    ```typescript
+    // ❌ Barrel imports (may import entire module)
+    import * as Motion from "motion/react";
+    import * as Components from "@/components";
+    ```
+  </Tab>
+</Tabs>
+
+### External Dependencies
+
+```typescript next.config.js
+module.exports = {
+  experimental: {
+    optimizePackageImports: ['motion', 'lucide-react'],
+  },
+};
+```
+
+### Route-Based Splitting
+
+Next.js automatically splits code by route:
+
+```
+app/
+  page.tsx          → Chunk: page
+  layout.tsx        → Chunk: layout
+  about/
+    page.tsx        → Chunk: about-page
+  blog/
+    [slug]/
+      page.tsx      → Chunk: blog-slug-page
+```
+
+**Result:** Each route only loads its required JavaScript.
+
+## Server Components
+
+### Default to Server Components
+
+Next.js 16 uses Server Components by default:
+
+```typescript app/page.tsx
+// ✅ Server Component (no directive needed)
+export default function Page() {
+  return <div>Server-rendered content</div>;
+}
+```
+
+**Benefits:**
+- Zero client JavaScript
+- Direct database access
+- Reduced bundle size
+- Better SEO
+
+### Client Component Boundaries
+
+Only mark components as client when necessary:
+
+```typescript
+"use client"; // Only when needed
+
+import { useState } from "react";
+import { motion } from "motion/react";
+
+export function InteractiveCard() {
+  const [count, setCount] = useState(0);
+  
+  return (
+    <motion.div animate={{ scale: count > 0 ? 1.1 : 1 }}>
+      <button onClick={() => setCount(c => c + 1)}>
+        Count: {count}
+      </button>
+    </motion.div>
+  );
+}
+```
+
+**When to use `"use client"`:**
+- React hooks (`useState`, `useEffect`, etc.)
+- Browser APIs (`window`, `document`, etc.)
+- Event handlers
+- Animation libraries (Motion)
+- Context providers
+
+### Composition Pattern
+
+```typescript app/page.tsx
+import { ServerComponent } from "./server-component";
+import { ClientComponent } from "./client-component";
+
+// Server Component (no directive)
+export default function Page() {
+  return (
+    <div>
+      <ServerComponent />
+      <ClientComponent />
+    </div>
+  );
+}
+```
+
+```typescript client-component.tsx
+"use client";
+
+import { useState } from "react";
+
+export function ClientComponent() {
+  const [isOpen, setIsOpen] = useState(false);
+  return <button onClick={() => setIsOpen(!isOpen)}>Toggle</button>;
+}
+```
+
+```typescript server-component.tsx
+// No "use client" directive
+
+export function ServerComponent() {
+  return <div>Static content rendered on server</div>;
+}
+```
+
+## React Compiler Optimization
+
+### Automatic Memoization
+
+The React Compiler automatically memoizes component renders:
+
+<Tabs items={['With Compiler', 'Manual (Old)']}>
+  <Tab value="With Compiler">
+    ```typescript
+    // ✅ Automatically optimized by React Compiler
+    function Component({ items }) {
+      const filtered = items.filter(item => item.active);
+      
+      return (
+        <div>
+          {filtered.map(item => <Item key={item.id} {...item} />)}
+        </div>
+      );
+    }
+    ```
+  </Tab>
+  <Tab value="Manual (Old)">
+    ```typescript
+    // ❌ No longer needed with React Compiler
+    function Component({ items }) {
+      const filtered = useMemo(
+        () => items.filter(item => item.active),
+        [items]
+      );
+      
+      return (
+        <div>
+          {filtered.map(item => <Item key={item.id} {...item} />)}
+        </div>
+      );
+    }
+    ```
+  </Tab>
+</Tabs>
+
+<Warning>
+  Do not manually use `useMemo`, `useCallback`, or `React.memo` when React Compiler is enabled. The compiler handles optimization automatically.
+</Warning>
+
+### Compiler-Friendly Patterns
+
+```typescript
+// ✅ Compiler can optimize
+function Component() {
+  const config = {
+    duration: 0.3,
+    ease: [0.19, 1, 0.22, 1]
+  };
+  
+  return <motion.div transition={config} />;
+}
+
+// ✅ Compiler can optimize
+function Component({ items }) {
+  return items.map(item => <Card key={item.id} {...item} />);
+}
+```
+
+### Compiler Configuration
+
+```typescript next.config.js
+module.exports = {
+  experimental: {
+    reactCompiler: true,
+  },
+};
+```
+
+## Runtime Performance
+
+### Animation Performance
+
+Use GPU-accelerated properties:
+
+```typescript
+// ✅ GPU-accelerated (60fps)
+<motion.div
+  animate={{
+    x: 100,        // transform: translateX()
+    y: 100,        // transform: translateY()
+    scale: 1.5,    // transform: scale()
+    rotate: 45,    // transform: rotate()
+    opacity: 0.5,  // opacity
+  }}
+/>
+
+// ❌ Triggers layout (janky)
+<motion.div
+  animate={{
+    width: 200,    // Layout recalc
+    height: 200,   // Layout recalc
+    top: 100,      // Layout recalc
+  }}
+/>
+```
+
+### CSS Performance
+
+```css
+/* ✅ Hardware-accelerated */
+.element {
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+/* ✅ Efficient transitions */
+.button {
+  transition:
+    color 0.2s ease,
+    background-color 0.2s ease,
+    transform 0.18s ease;
+}
+
+/* ❌ Avoid expensive properties */
+.element {
+  transition: all 0.3s ease; /* Too broad */
+  box-shadow: 0 10px 50px rgba(0,0,0,0.5); /* Expensive */
+}
+```
+
+### Web Audio Optimization
+
+Reuse AudioContext across the application:
+
+```typescript lib/sounds.ts
+let audioContext: AudioContext | null = null;
+
+function getAudioContext(): AudioContext {
+  if (!audioContext) {
+    audioContext = new AudioContext();
+  }
+  if (audioContext.state === "suspended") {
+    audioContext.resume();
+  }
+  return audioContext;
+}
+
+export const sounds = {
+  click: () => {
+    try {
+      const ctx = getAudioContext(); // Reuse singleton
+      // ... sound generation
+    } catch {}
+  }
+};
+```
+
+**Benefits:**
+- Single AudioContext per application
+- Automatic resume on interaction
+- Graceful degradation with try-catch
+
+### Debouncing & Throttling
+
+```typescript
+import { useEffect, useState } from "react";
+
+// Debounced search
+function SearchInput() {
+  const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(query);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  return (
+    <input
+      value={query}
+      onChange={(e) => setQuery(e.target.value)}
+    />
+  );
+}
+```
+
+## Loading States
+
+### Suspense Boundaries
+
+```typescript
+import { Suspense } from "react";
+import { Spinner } from "@/components/spinner";
+
+function Page() {
+  return (
+    <Suspense fallback={<Spinner />}>
+      <AsyncContent />
+    </Suspense>
+  );
+}
+```
+
+### Skeleton Screens
+
+```typescript
+function ContentSkeleton() {
+  return (
+    <div className={styles.skeleton}>
+      <div className={styles.skeletonTitle} />
+      <div className={styles.skeletonParagraph} />
+      <div className={styles.skeletonParagraph} />
+    </div>
+  );
+}
+
+function Page() {
+  return (
+    <Suspense fallback={<ContentSkeleton />}>
+      <Content />
+    </Suspense>
+  );
+}
+```
+
+```css styles.module.css
+.skeleton-title {
+  width: 60%;
+  height: 24px;
+  background: var(--gray-a3);
+  border-radius: 4px;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+```
+
+## Monitoring & Metrics
+
+### Core Web Vitals
+
+Target metrics:
+
+| Metric | Target | Description |
+|--------|--------|-------------|
+| LCP | < 2.5s | Largest Contentful Paint |
+| FID | < 100ms | First Input Delay |
+| CLS | < 0.1 | Cumulative Layout Shift |
+| TTFB | < 600ms | Time to First Byte |
+| INP | < 200ms | Interaction to Next Paint |
+
+### Performance Monitoring
+
+```typescript app/layout.tsx
+import { SpeedInsights } from "@vercel/speed-insights/next";
+import { Analytics } from "@vercel/analytics/react";
+
+export default function RootLayout({ children }) {
+  return (
+    <html>
+      <body>
+        {children}
+        <SpeedInsights />
+        <Analytics />
+      </body>
+    </html>
+  );
+}
+```
+
+### Custom Performance Marks
+
+```typescript
+function Component() {
+  useEffect(() => {
+    performance.mark('component-mounted');
+    
+    return () => {
+      performance.mark('component-unmounted');
+      performance.measure(
+        'component-lifetime',
+        'component-mounted',
+        'component-unmounted'
+      );
+    };
+  }, []);
+  
+  return <div>Content</div>;
+}
+```
+
+## Build Optimization
+
+### Production Build Analysis
+
+```bash
+npm run build
+```
+
+**Output Analysis:**
+```
+Route (app)                              Size     First Load JS
+┌ ○ /                                    142 B          87.2 kB
+├ ○ /about                               152 B          87.3 kB
+└ ○ /blog/[slug]                         312 B          87.5 kB
+
+○ Server (static)
+```
+
+### Environment Variables
+
+```typescript
+// Compile-time optimization
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+// Build-time dead code elimination
+if (process.env.NODE_ENV === 'development') {
+  console.log('Debug info'); // Removed in production
+}
+```
+
+### Minification
+
+Next.js uses SWC for minification by default:
+
+```typescript next.config.js
+module.exports = {
+  swcMinify: true, // Enabled by default in Next.js 16
+};
+```
+
+## Caching Strategies
+
+### Static Generation
+
+```typescript app/blog/[slug]/page.tsx
+export async function generateStaticParams() {
+  const posts = await getBlogPosts();
+  return posts.map((post) => ({
+    slug: post.slug,
+  }));
+}
+
+export default async function BlogPost({ params }) {
+  const post = await getPost(params.slug);
+  return <article>{post.content}</article>;
+}
+```
+
+### Revalidation
+
+```typescript
+export const revalidate = 3600; // Revalidate every hour
+
+export default async function Page() {
+  const data = await fetch('https://api.example.com/data');
+  return <div>{data}</div>;
+}
+```
+
+### Cache Headers
+
+```typescript next.config.js
+module.exports = {
+  async headers() {
+    return [
+      {
+        source: '/static/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+    ];
+  },
+};
+```
+
+## Performance Checklist
+
+<Tabs items={['Images', 'JavaScript', 'Rendering', 'Network']}>
+  <Tab value="Images">
+    - [ ] Use Next.js Image component
+    - [ ] Specify width and height
+    - [ ] Use priority for above-the-fold images
+    - [ ] Enable AVIF/WebP formats
+    - [ ] Add blur placeholders for content images
+    - [ ] Lazy load off-screen images
+  </Tab>
+  <Tab value="JavaScript">
+    - [ ] Default to Server Components
+    - [ ] Use dynamic imports for heavy components
+    - [ ] Enable React Compiler
+    - [ ] Remove manual memoization
+    - [ ] Use named imports for tree shaking
+    - [ ] Analyze bundle size regularly
+  </Tab>
+  <Tab value="Rendering">
+    - [ ] Minimize client components
+    - [ ] Use GPU-accelerated animations
+    - [ ] Respect prefers-reduced-motion
+    - [ ] Add Suspense boundaries
+    - [ ] Implement skeleton screens
+    - [ ] Optimize animation durations (under 300ms)
+  </Tab>
+  <Tab value="Network">
+    - [ ] Enable static generation where possible
+    - [ ] Configure revalidation
+    - [ ] Set cache headers
+    - [ ] Use CDN for static assets
+    - [ ] Compress responses (gzip/brotli)
+    - [ ] Minimize API requests
+  </Tab>
+</Tabs>
+
+## Debugging Performance
+
+### React DevTools Profiler
+
+```typescript
+import { Profiler } from "react";
+
+function onRenderCallback(
+  id,
+  phase,
+  actualDuration,
+  baseDuration,
+  startTime,
+  commitTime
+) {
+  console.log(`${id} (${phase}) took ${actualDuration}ms`);
+}
+
+function App() {
+  return (
+    <Profiler id="App" onRender={onRenderCallback}>
+      <Content />
+    </Profiler>
+  );
+}
+```
+
+### Chrome DevTools Performance
+
+1. Open DevTools → Performance tab
+2. Record interaction
+3. Analyze flame graph
+4. Identify long tasks (>50ms)
+5. Optimize bottlenecks
+
+### Lighthouse Audits
+
+```bash
+lighthouse https://example.com --view
+```
+
+**Focus Areas:**
+- Performance score
+- First Contentful Paint
+- Speed Index
+- Time to Interactive
+- Total Blocking Time
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Web Audio API" icon="volume-2" href="/technical/web-audio-api">
+    Implement efficient procedural sound generation
+  </Card>
+  <Card title="Motion Implementation" icon="sparkles" href="/technical/motion-implementation">
+    Master advanced animation patterns with Motion
+  </Card>
+</CardGroup>

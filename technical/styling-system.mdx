@@ -1,0 +1,535 @@
+---
+title: Styling System
+description: CSS Modules approach, theme variables, and styling patterns in the User Interface Wiki
+---
+
+## Overview
+
+The project uses **CSS Modules** for component styling with a comprehensive theme system built on Radix UI Colors. Every component has a colocated `styles.module.css` file, and all styles leverage CSS custom properties from the global theme.
+
+## CSS Modules
+
+### File Organization
+
+Every component directory contains a `styles.module.css` file:
+
+```
+components/
+  button/
+    index.tsx
+    styles.module.css    # Button styles
+  callout/
+    index.tsx
+    styles.module.css    # Callout styles
+```
+
+### Import Pattern
+
+Import CSS modules as a default import named `styles`:
+
+```tsx title="components/button/index.tsx"
+import styles from "./styles.module.css";
+
+function Button({ variant, children }: ButtonProps) {
+  return (
+    <button className={clsx(styles.button, styles[variant])}>
+      {children}
+    </button>
+  );
+}
+```
+
+### Naming Convention
+
+**All CSS class names use kebab-case:**
+
+<CodeGroup>
+
+```css title="Correct: kebab-case classes"
+.button-primary { }
+.nav-item { }
+.text-selection-popover { }
+```
+
+```css title="Incorrect: Other naming styles"
+.buttonPrimary { }  /* ❌ camelCase */
+.NavItem { }        /* ❌ PascalCase */
+.button_primary { } /* ❌ snake_case */
+```
+
+</CodeGroup>
+
+### Conditional Class Composition
+
+Use `clsx` for composing classes conditionally:
+
+```tsx
+import clsx from "clsx";
+
+function Button({ variant, size, className, isDisabled }: ButtonProps) {
+  return (
+    <button
+      className={clsx(
+        styles.button,
+        styles[variant],
+        styles[size],
+        isDisabled && styles.disabled,
+        className,  // Allow external classes to be passed in
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+```
+
+## Theme System
+
+The theme is organized across multiple CSS files in `/styles/`:
+
+```
+styles/
+  styles.css               # Main entry point, layout variables
+  styles.theme.css         # Radix UI Colors, shadow system
+  styles.typography.css    # Font weights, letter spacing
+  styles.reset.css         # CSS reset
+  styles.mdx.css          # MDX/prose styles
+```
+
+### Colors
+
+The project uses [Radix UI Colors](https://www.radix-ui.com/colors) for a comprehensive, accessible color system with automatic dark mode support.
+
+#### Gray Scale
+
+The primary gray scale provides 12 steps for UI elements:
+
+<ParamField path="--gray-1 to --gray-12" type="color">
+  Solid colors from lightest (1) to darkest (12). Use for backgrounds, borders, and text.
+</ParamField>
+
+<ParamField path="--gray-a1 to --gray-a12" type="alpha color">
+  Alpha variants with transparency. Useful for overlays and subtle backgrounds.
+</ParamField>
+
+```css title="Example Usage"
+.button {
+  color: var(--gray-10);      /* Medium gray text */
+  background: var(--gray-1);   /* Lightest gray background */
+  border: 1px solid var(--gray-4);  /* Subtle border */
+}
+
+.button:hover {
+  color: var(--gray-12);       /* Darkest gray on hover */
+  background: var(--gray-a3);  /* Subtle alpha background */
+}
+```
+
+#### Semantic Colors
+
+All Radix color scales are available with the same 1-12 and a1-a12 patterns:
+
+| Color | Use Case | Variables |
+|-------|----------|----------|
+| `blue` | Info, links, primary actions | `--blue-1` to `--blue-12`, `--blue-a1` to `--blue-a12` |
+| `red` | Errors, destructive actions | `--red-1` to `--red-12`, `--red-a1` to `--red-a12` |
+| `green` | Success states | `--green-1` to `--green-12`, `--green-a1` to `--green-a12` |
+| `amber` | Warnings | `--amber-1` to `--amber-12`, `--amber-a1` to `--amber-a12` |
+| `purple` | Ideas, creative elements | `--purple-1` to `--purple-12`, `--purple-a1` to `--purple-a12` |
+
+```css title="components/callout/styles.module.css"
+.callout {
+  background: var(--gray-2);
+  border: 1px solid var(--gray-4);
+}
+
+.callout[data-variant="info"] {
+  background: var(--blue-2);
+  border-color: var(--blue-6);
+}
+
+.callout[data-variant="error"] {
+  background: var(--red-2);
+  border-color: var(--red-6);
+}
+
+.callout[data-variant="success"] {
+  background: var(--green-2);
+  border-color: var(--green-6);
+}
+```
+
+#### Available Color Scales
+
+All colors from Radix UI Colors are available:
+
+- Gray family: `gray`, `mauve`, `slate`, `sage`, `olive`, `sand`
+- Colors: `tomato`, `red`, `ruby`, `crimson`, `pink`, `plum`, `purple`, `violet`, `iris`, `indigo`, `blue`, `cyan`, `teal`, `jade`, `green`, `grass`, `lime`, `mint`, `sky`
+- Metals: `bronze`, `gold`
+- Bright: `amber`, `yellow`, `orange`, `brown`
+
+### Typography
+
+Typography variables are defined in `styles.typography.css`:
+
+#### Font Weights
+
+```css
+:root {
+  --font-weight-light: 330;
+  --font-weight-normal: 450;
+  --font-weight-medium: 550;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+}
+```
+
+<CodeGroup>
+
+```css title="Usage"
+.button {
+  font-weight: var(--font-weight-medium);
+}
+
+.title {
+  font-weight: var(--font-weight-bold);
+}
+
+.caption {
+  font-weight: var(--font-weight-normal);
+}
+```
+
+```css title="Incorrect: Hardcoded values"
+.button {
+  font-weight: 550;  /* ❌ Use var(--font-weight-medium) */
+}
+```
+
+</CodeGroup>
+
+#### Letter Spacing
+
+Optical letter spacing values for font sizes from 12px to 48px:
+
+```css
+:root {
+  --font-letter-spacing-12px: 0.006px;
+  --font-letter-spacing-13px: -0.041px;
+  --font-letter-spacing-14px: -0.087px;
+  --font-letter-spacing-15px: -0.132px;
+  --font-letter-spacing-16px: -0.175px;
+  /* ... up to 48px */
+}
+```
+
+**Always pair letter spacing with font size:**
+
+```css
+.small {
+  font-size: 13px;
+  letter-spacing: var(--font-letter-spacing-13px);
+}
+
+.medium {
+  font-size: 14px;
+  letter-spacing: var(--font-letter-spacing-14px);
+}
+
+.large {
+  font-size: 15px;
+  letter-spacing: var(--font-letter-spacing-15px);
+}
+```
+
+### Shadows
+
+A six-level shadow system with automatic dark mode support:
+
+<ParamField path="--shadow-1" type="inset shadow">
+  Inset shadow for pressed/sunken elements like input fields
+</ParamField>
+
+<ParamField path="--shadow-2" type="elevation">
+  Subtle elevation for buttons and cards at rest
+</ParamField>
+
+<ParamField path="--shadow-3" type="elevation">
+  Medium elevation for dropdowns and popovers
+</ParamField>
+
+<ParamField path="--shadow-4" type="elevation">
+  High elevation for modals and dialogs
+</ParamField>
+
+<ParamField path="--shadow-5" type="elevation">
+  Very high elevation for tooltips
+</ParamField>
+
+<ParamField path="--shadow-6" type="elevation">
+  Maximum elevation for notification toasts
+</ParamField>
+
+```css title="Example Usage"
+.button {
+  box-shadow: var(--shadow-2);
+}
+
+.popover {
+  box-shadow: var(--shadow-3);
+}
+
+.modal {
+  box-shadow: var(--shadow-5);
+}
+```
+
+The shadow system automatically adapts to dark mode using color-mix when supported.
+
+### Layout Variables
+
+Layout variables are defined in `styles.css`:
+
+```css
+:root {
+  --page-padding-inline: 24px;
+  --page-padding-block: 64px;
+  --page-max-width: 640px;
+  --prose-max-width: 640px;
+  --prose-block-radius: 8px;
+  --prose-block-spacing: 16px;
+}
+```
+
+<CodeGroup>
+
+```css title="Page Layout"
+#main-content {
+  width: 100%;
+  max-width: var(--page-max-width);
+  padding-right: var(--page-padding-right);
+  padding-left: var(--page-padding-left);
+  margin-right: auto;
+  margin-left: auto;
+}
+```
+
+```css title="Content Blocks"
+.figure {
+  margin-block: var(--prose-block-spacing);
+  border-radius: var(--prose-block-radius);
+}
+```
+
+</CodeGroup>
+
+## Size Scales
+
+Use consistent size scales across components for visual harmony:
+
+### Button Sizes
+
+```css title="components/button/styles.module.css"
+.small {
+  height: 28px;
+  padding: 5px 8px;
+  font-size: 13px;
+  letter-spacing: var(--font-letter-spacing-13px);
+}
+
+.medium {
+  height: 32px;
+  padding: 6px 12px;
+  font-size: 14px;
+  letter-spacing: var(--font-letter-spacing-14px);
+}
+
+.large {
+  height: 40px;
+  padding: 8px 16px;
+  font-size: 15px;
+  letter-spacing: var(--font-letter-spacing-15px);
+}
+```
+
+### Applying to Square Elements
+
+```css
+.square {
+  aspect-ratio: 1;
+  padding: 0;
+}
+
+.square.small {
+  width: 28px;  /* Matches height */
+}
+
+.square.medium {
+  width: 32px;
+}
+
+.square.large {
+  width: 40px;
+}
+```
+
+## Transitions
+
+### Standard Timing
+
+Use consistent transition durations and easing:
+
+```css
+.element {
+  transition:
+    color 0.2s ease,
+    background-color 0.2s ease,
+    transform 0.18s ease,
+    box-shadow 0.2s ease;
+}
+```
+
+| Property | Duration | Easing | Use Case |
+|----------|----------|--------|----------|
+| `color` | 200ms | ease | Color changes |
+| `background-color` | 200ms | ease | Background changes |
+| `transform` | 180ms | ease | Scale/rotate/translate |
+| `opacity` | 200ms | ease | Fade in/out |
+
+### Active States
+
+Apply scale transform on interaction:
+
+```css
+.button:active {
+  transform: scale(0.98);
+}
+```
+
+The `transform` transition ensures smooth animation when scaling.
+
+## Data Attribute Styling
+
+Use data attributes for variant styling instead of multiple classes:
+
+<CodeGroup>
+
+```tsx title="Component"
+function Callout({ type = "info", children }: CalloutProps) {
+  return (
+    <div className={styles.callout} data-variant={type}>
+      {children}
+    </div>
+  );
+}
+```
+
+```css title="Styles"
+.callout {
+  /* Base styles */
+  padding: 12px 14px;
+  background: var(--gray-2);
+}
+
+/* Variant styles using data attributes */
+.callout[data-variant="info"] {
+  background: var(--blue-2);
+  border-color: var(--blue-6);
+}
+
+.callout[data-variant="error"] {
+  background: var(--red-2);
+  border-color: var(--red-6);
+}
+```
+
+</CodeGroup>
+
+This pattern keeps variant logic in CSS and reduces the need for conditional class composition in JavaScript.
+
+## Responsive Design
+
+The project uses CSS custom properties with safe area insets for responsive padding:
+
+```css
+:root {
+  --page-padding-inline: 24px;
+  --page-padding-left: max(
+    env(safe-area-inset-left),
+    var(--page-padding-inline)
+  );
+  --page-padding-right: max(
+    env(safe-area-inset-right),
+    var(--page-padding-inline)
+  );
+}
+```
+
+This ensures content respects device notches and safe areas on mobile devices.
+
+## Dark Mode
+
+Dark mode is handled automatically by Radix UI Colors. Each color scale has dark variants that are applied when the `.dark` or `.dark-theme` class is present:
+
+```css
+/* Light mode */
+:root {
+  --gray-1: hsl(0, 0%, 99%);
+  --gray-12: hsl(0, 0%, 8%);
+}
+
+/* Dark mode - automatically applied */
+:is(.dark, .dark-theme) {
+  --gray-1: hsl(0, 0%, 8%);
+  --gray-12: hsl(0, 0%, 93%);
+}
+```
+
+<Callout type="success">
+  You don't need to write separate dark mode styles. By using the theme variables, your components automatically adapt to light and dark modes.
+</Callout>
+
+## Best Practices
+
+<Callout type="success" title="Always Use Theme Variables">
+  Never hardcode colors, shadows, or typography values. Always use CSS custom properties from the theme.
+</Callout>
+
+<CodeGroup>
+
+```css title="Correct: Using theme variables"
+.button {
+  color: var(--gray-10);
+  background: var(--gray-1);
+  font-weight: var(--font-weight-medium);
+  letter-spacing: var(--font-letter-spacing-14px);
+  box-shadow: var(--shadow-2);
+}
+```
+
+```css title="Incorrect: Hardcoded values"
+.button {
+  color: #333;              /* ❌ Use var(--gray-10) */
+  background: #f9f9f9;      /* ❌ Use var(--gray-1) */
+  font-weight: 550;         /* ❌ Use var(--font-weight-medium) */
+  letter-spacing: -0.087px; /* ❌ Use var(--font-letter-spacing-14px) */
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* ❌ Use var(--shadow-2) */
+}
+```
+
+</CodeGroup>
+
+<Callout type="success" title="Kebab-Case Class Names">
+  All CSS class names must use kebab-case: `.button-primary`, `.nav-item`, `.text-selection-popover`
+</Callout>
+
+<Callout type="success" title="Colocate Styles">
+  Keep `styles.module.css` in the same directory as the component. Never create a separate `/styles/components/` directory.
+</Callout>
+
+<Callout type="success" title="Pair Font Size with Letter Spacing">
+  Always use the matching letter spacing variable for each font size:
+  - 13px → `var(--font-letter-spacing-13px)`
+  - 14px → `var(--font-letter-spacing-14px)`
+  - 15px → `var(--font-letter-spacing-15px)`
+</Callout>

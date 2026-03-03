@@ -1,122 +1,89 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
-  "name": "Mint Starter Kit",
+  "name": "User Interface Wiki",
+  "theme": "willow",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#111113",
+    "light": "#fcfcfc",
+    "dark": "#111113"
   },
   "favicon": "/favicon.svg",
+  "navbar": {
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/raphaelsalaja/userinterface-wiki"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/raphaelsalaja/userinterface-wiki"
+    }
+  },
   "navigation": {
     "tabs": [
       {
-        "tab": "Guides",
+        "tab": "Documentation",
         "groups": [
           {
-            "group": "Getting started",
+            "group": "Get Started",
             "pages": [
-              "index",
-              "quickstart",
-              "development"
+              "introduction",
+              "contributing"
             ]
           },
           {
-            "group": "Customization",
+            "group": "Design Principles",
             "pages": [
-              "essentials/settings",
-              "essentials/navigation"
+              "principles/laws-of-ux",
+              "principles/design-philosophy"
             ]
           },
           {
-            "group": "Writing content",
+            "group": "Animation & Motion",
             "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
+              "animation/12-principles-of-animation",
+              "animation/to-spring-or-not-to-spring",
+              "animation/mastering-animate-presence",
+              "animation/animating-container-bounds"
             ]
           },
           {
-            "group": "AI tools",
+            "group": "Visual Design",
             "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
+              "visual/morphing-icons",
+              "visual/taking-advantage-of-pseudo-elements"
+            ]
+          },
+          {
+            "group": "Sound & Audio",
+            "pages": [
+              "audio/sounds-on-the-web",
+              "audio/generating-sounds-with-ai"
             ]
           }
         ]
       },
       {
-        "tab": "API reference",
+        "tab": "Technical Reference",
         "groups": [
           {
-            "group": "API documentation",
+            "group": "Components",
             "pages": [
-              "api-reference/introduction"
+              "technical/component-architecture",
+              "technical/styling-system",
+              "technical/accessibility"
             ]
           },
           {
-            "group": "Endpoint examples",
+            "group": "Advanced Topics",
             "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
+              "technical/web-audio-api",
+              "technical/motion-implementation",
+              "technical/performance-optimization"
             ]
           }
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
-  },
-  "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
-    }
-  },
-  "contextual": {
-    "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
-  },
-  "footer": {
-    "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
-    }
+    ]
   }
 }

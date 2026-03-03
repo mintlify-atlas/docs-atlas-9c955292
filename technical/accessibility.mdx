@@ -1,0 +1,653 @@
+---
+title: Accessibility Standards
+description: Accessibility requirements including semantic HTML, ARIA attributes, focus management, and reduced motion support
+---
+
+## Overview
+
+Accessibility is a core requirement in the User Interface Wiki. All components must follow WCAG guidelines, use semantic HTML, provide proper ARIA attributes, support keyboard navigation, and respect user motion preferences.
+
+## Semantic HTML
+
+### Use Appropriate Elements
+
+Always use semantic HTML elements that match the component's purpose:
+
+<CodeGroup>
+
+```tsx title="Correct: Semantic elements"
+function Navigation() {
+  return (
+    <nav aria-label="Main navigation">
+      <ul>
+        <li><a href="/">Home</a></li>
+        <li><a href="/docs">Documentation</a></li>
+      </ul>
+    </nav>
+  );
+}
+
+function Article() {
+  return (
+    <article>
+      <h1>Article Title</h1>
+      <p>Content goes here...</p>
+    </article>
+  );
+}
+```
+
+```tsx title="Incorrect: Generic divs"
+function Navigation() {
+  return (
+    <div>  {/* ❌ Should be <nav> */}
+      <div> {/* ❌ Should be <ul> */}
+        <div onClick={handleClick}>Home</div> {/* ❌ Should be <a> or <button> */}
+      </div>
+    </div>
+  );
+}
+```
+
+</CodeGroup>
+
+### Interactive Elements
+
+**Buttons vs Links:**
+
+<ParamField path="<button>" type="element">
+  Use for actions that change application state (open modal, submit form, toggle state)
+</ParamField>
+
+<ParamField path="<a>" type="element">
+  Use for navigation to different pages or sections
+</ParamField>
+
+<CodeGroup>
+
+```tsx title="Correct: Proper element choice"
+// Action that changes state
+<button onClick={handleOpen}>Open Dialog</button>
+
+// Navigation to another page
+<a href="/about">About Us</a>
+```
+
+```tsx title="Incorrect: Wrong elements"
+// ❌ Div with onClick is not accessible
+<div onClick={handleClick}>Click me</div>
+
+// ❌ Button for navigation
+<button onClick={() => router.push('/about')}>About Us</button>
+```
+
+</CodeGroup>
+
+### Semantic Component Example
+
+From the actual Button component:
+
+```tsx title="components/button/index.tsx"
+import { Button as BaseButton } from "@base-ui/react/button";
+
+function Button({ children, ...props }: ButtonProps) {
+  return (
+    <BaseButton
+      nativeButton={true}  // Ensures proper <button> element
+      className={styles.button}
+      {...props}
+    >
+      {children}
+    </BaseButton>
+  );
+}
+```
+
+Base UI components provide semantic HTML by default, which is why we use them as primitives.
+
+## ARIA Attributes
+
+### When to Use ARIA
+
+ARIA attributes supplement semantic HTML when native elements are insufficient:
+
+<Callout type="info">
+  **First Rule of ARIA:** If you can use a native HTML element or attribute with the semantics and behavior you require already built in, do so. Only use ARIA when semantic HTML is not enough.
+</Callout>
+
+### Common ARIA Patterns
+
+#### Labels and Descriptions
+
+```tsx
+// Label for interactive elements without visible text
+<button aria-label="Close dialog">
+  <XIcon />
+</button>
+
+// Description for additional context
+<input
+  type="password"
+  aria-label="Password"
+  aria-describedby="password-requirements"
+/>
+<div id="password-requirements">
+  Must be at least 8 characters
+</div>
+```
+
+#### Live Regions
+
+Announce dynamic content changes to screen readers:
+
+```tsx
+function Toast({ message }: ToastProps) {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+    >
+      {message}
+    </div>
+  );
+}
+
+function ErrorAlert({ error }: ErrorAlertProps) {
+  return (
+    <div
+      role="alert"  // Implicitly aria-live="assertive"
+      aria-atomic="true"
+    >
+      {error}
+    </div>
+  );
+}
+```
+
+#### Tab Pattern
+
+```tsx
+function Tabs({ tabs, activeTab }: TabsProps) {
+  return (
+    <div>
+      <div role="tablist" aria-label="Content sections">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            role="tab"
+            aria-selected={activeTab === tab.id}
+            aria-controls={`panel-${tab.id}`}
+            id={`tab-${tab.id}`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+      {tabs.map((tab) => (
+        <div
+          key={tab.id}
+          role="tabpanel"
+          id={`panel-${tab.id}`}
+          aria-labelledby={`tab-${tab.id}`}
+          hidden={activeTab !== tab.id}
+        >
+          {tab.content}
+        </div>
+      ))}
+    </div>
+  );
+}
+```
+
+#### Dialog/Modal Pattern
+
+```tsx
+function Dialog({ isOpen, title, children }: DialogProps) {
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="dialog-title"
+      hidden={!isOpen}
+    >
+      <h2 id="dialog-title">{title}</h2>
+      {children}
+      <button aria-label="Close dialog">✕</button>
+    </div>
+  );
+}
+```
+
+### Real Example: Popover Component
+
+From the actual codebase:
+
+```tsx title="components/popover/index.tsx"
+import { Popover as BasePopover } from "@base-ui/react/popover";
+
+// Base UI handles all ARIA attributes automatically:
+// - aria-haspopup
+// - aria-expanded
+// - aria-controls
+// - role="dialog"
+
+function PopoverTrigger({ ...props }: PopoverTriggerProps) {
+  return <BasePopover.Trigger className={styles.trigger} {...props} />;
+}
+
+function PopoverPopup({ ...props }: PopoverPopupProps) {
+  return <BasePopover.Popup className={styles.popup} {...props} />;
+}
+```
+
+Base UI components handle complex ARIA patterns correctly, which is a major reason we use them.
+
+## Focus Management
+
+### Visible Focus Indicators
+
+All interactive elements must have visible focus states:
+
+```css title="components/button/styles.module.css"
+.button {
+  /* Base styles */
+  border-radius: 6px;
+  transition:
+    color 0.2s ease,
+    background-color 0.2s ease,
+    outline 0.2s ease;
+}
+
+.button:focus-visible {
+  outline: 2px solid var(--gray-12);
+  outline-offset: 2px;
+}
+```
+
+<Callout type="info">
+  Use `:focus-visible` instead of `:focus` to show outlines only for keyboard navigation, not mouse clicks.
+</Callout>
+
+### Focus Outline Pattern
+
+Consistent focus styling across components:
+
+```css
+/* High contrast outline for keyboard focus */
+:focus-visible {
+  outline: 2px solid var(--gray-12);
+  outline-offset: 2px;
+}
+
+/* Remove default browser outline */
+:focus {
+  outline: none;
+}
+```
+
+### Keyboard Navigation
+
+Ensure all interactive features are keyboard accessible:
+
+<ParamField path="Tab" type="key">
+  Move focus forward through interactive elements
+</ParamField>
+
+<ParamField path="Shift + Tab" type="key">
+  Move focus backward through interactive elements
+</ParamField>
+
+<ParamField path="Enter / Space" type="key">
+  Activate buttons and links
+</ParamField>
+
+<ParamField path="Escape" type="key">
+  Close dialogs, popovers, and modals
+</ParamField>
+
+<ParamField path="Arrow Keys" type="key">
+  Navigate within composite widgets (tabs, menus, listboxes)
+</ParamField>
+
+### Focus Trap for Modals
+
+When a modal opens, trap focus within it:
+
+```tsx
+import { useEffect, useRef } from "react";
+
+function Dialog({ isOpen, onClose, children }: DialogProps) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+
+    // Store the element that opened the dialog
+    const previousActiveElement = document.activeElement as HTMLElement;
+
+    // Focus the first focusable element in the dialog
+    const focusableElements = dialog.querySelectorAll(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    const firstElement = focusableElements[0] as HTMLElement;
+    firstElement?.focus();
+
+    // Return focus when dialog closes
+    return () => {
+      previousActiveElement?.focus();
+    };
+  }, [isOpen]);
+
+  return (
+    <div
+      ref={dialogRef}
+      role="dialog"
+      aria-modal="true"
+      hidden={!isOpen}
+    >
+      {children}
+    </div>
+  );
+}
+```
+
+Base UI Popover, Dialog, and other overlay components handle focus management automatically.
+
+## Skip Links
+
+Provide skip navigation for keyboard users:
+
+```tsx title="From styles.css"
+.skip-to-content {
+  position: absolute;
+  top: -100px;  /* Hidden by default */
+  left: 50%;
+  z-index: 100;
+  padding: 12px 24px;
+  font-size: 14px;
+  font-weight: var(--font-weight-medium);
+  color: var(--gray-1);
+  text-decoration: none;
+  background: var(--gray-12);
+  border-radius: 8px;
+  transform: translateX(-50%);
+  transition: top 0.2s ease;
+}
+
+.skip-to-content:focus {
+  top: 16px;  /* Visible when focused */
+}
+```
+
+```tsx title="Layout Component"
+function Layout({ children }: LayoutProps) {
+  return (
+    <>
+      <a href="#main-content" className="skip-to-content">
+        Skip to content
+      </a>
+      <Navigation />
+      <main id="main-content">
+        {children}
+      </main>
+    </>
+  );
+}
+```
+
+## Reduced Motion
+
+### Respect User Preferences
+
+Always respect the `prefers-reduced-motion` media query:
+
+```css
+.animated {
+  transition:
+    transform 0.3s ease,
+    opacity 0.3s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animated {
+    animation: none;
+    transition: none;
+  }
+}
+```
+
+### Motion Library Support
+
+Use Motion's built-in reduced motion support:
+
+```tsx
+import { motion } from "motion/react";
+
+<motion.div
+  initial={{ opacity: 0, y: 20 }}
+  animate={{ opacity: 1, y: 0 }}
+  transition={{ duration: 0.3 }}
+>
+  Content
+</motion.div>
+```
+
+Motion automatically disables animations when `prefers-reduced-motion: reduce` is set.
+
+### Manual Reduced Motion Check
+
+For custom animations:
+
+```tsx
+import { useReducedMotion } from "motion/react";
+
+function AnimatedComponent() {
+  const shouldReduceMotion = useReducedMotion();
+
+  return (
+    <motion.div
+      animate={{
+        scale: shouldReduceMotion ? 1 : [1, 1.1, 1],
+      }}
+      transition={{
+        duration: shouldReduceMotion ? 0 : 0.6,
+      }}
+    >
+      Content
+    </motion.div>
+  );
+}
+```
+
+### CSS Transitions with Reduced Motion
+
+Pattern from the Figure component:
+
+```css title="components/figure/styles.module.css"
+.wrapper {
+  border-radius: var(--prose-block-radius);
+  transition: transform 0.2s ease;
+}
+
+.wrapper:hover {
+  transform: scale(1.02);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wrapper {
+    transition: none;
+  }
+
+  .wrapper:hover {
+    transform: none;
+  }
+}
+```
+
+## Color Contrast
+
+### WCAG AA Compliance
+
+The Radix UI Colors used in the theme meet WCAG AA contrast requirements:
+
+```css
+/* Text on backgrounds */
+.light-text {
+  color: var(--gray-11);  /* AA compliant on gray-1 to gray-3 */
+}
+
+.dark-text {
+  color: var(--gray-12);  /* AAA compliant on gray-1 to gray-3 */
+}
+
+/* Interactive elements */
+.button {
+  color: var(--gray-10);       /* AA compliant */
+  background: var(--gray-1);
+}
+
+.button:hover {
+  color: var(--gray-12);       /* AAA compliant */
+}
+```
+
+Radix UI color scales are designed so that:
+- Steps 1-2: Backgrounds, subtle fills
+- Steps 3-5: UI borders and separators  
+- Steps 6-8: Hovered UI backgrounds
+- Steps 9-10: Solid backgrounds, hovered text
+- Steps 11-12: Low-contrast text, high-contrast text
+
+### Testing Contrast
+
+Always verify color combinations meet minimum contrast ratios:
+- **Normal text:** 4.5:1 (WCAG AA)
+- **Large text:** 3:1 (WCAG AA)
+- **Interactive elements:** 3:1 (WCAG AA)
+
+## Screen Reader Support
+
+### Descriptive Labels
+
+```tsx
+// Icon-only button
+<button aria-label="Close dialog">
+  <XIcon aria-hidden="true" />
+</button>
+
+// Search input
+<input
+  type="search"
+  aria-label="Search documentation"
+  placeholder="Search..."
+/>
+```
+
+### Hide Decorative Elements
+
+```tsx
+// Decorative icon
+<div>
+  <CheckIcon aria-hidden="true" />
+  <span>Task completed</span>
+</div>
+
+// Decorative background shape
+<div aria-hidden="true" className="background-orb" />
+```
+
+### Announce Dynamic Changes
+
+```tsx
+function SearchResults({ results, isLoading }: SearchResultsProps) {
+  return (
+    <>
+      <div role="status" aria-live="polite" aria-atomic="true">
+        {isLoading ? "Searching..." : `Found ${results.length} results`}
+      </div>
+      <ul>
+        {results.map((result) => (
+          <li key={result.id}>{result.title}</li>
+        ))}
+      </ul>
+    </>
+  );
+}
+```
+
+## Alt Text for Images
+
+Provide descriptive alt text for meaningful images:
+
+```tsx
+import Image from "next/image";
+
+// Descriptive alt for content images
+<Image
+  src="/content/animation-example.gif"
+  alt="Ball bouncing with squash and stretch, demonstrating the first principle of animation"
+  width={640}
+  height={360}
+/>
+
+// Empty alt for decorative images
+<Image
+  src="/decorative-pattern.svg"
+  alt=""
+  width={100}
+  height={100}
+/>
+```
+
+## Testing Checklist
+
+Before shipping a component, verify:
+
+<Callout type="success" title="Keyboard Navigation">
+  - [ ] All interactive elements are focusable with Tab
+  - [ ] Focus order is logical and follows visual layout
+  - [ ] Focus indicators are visible with `:focus-visible`
+  - [ ] All functionality is available via keyboard
+  - [ ] Escape closes modals and popovers
+</Callout>
+
+<Callout type="success" title="Screen Reader Support">
+  - [ ] Semantic HTML elements are used correctly
+  - [ ] Interactive elements have descriptive labels
+  - [ ] Decorative elements are hidden with `aria-hidden`
+  - [ ] Dynamic content changes are announced
+  - [ ] Images have descriptive alt text
+</Callout>
+
+<Callout type="success" title="Motion & Animation">
+  - [ ] Animations respect `prefers-reduced-motion`
+  - [ ] Motion duration doesn't exceed 300ms for user-initiated actions
+  - [ ] No auto-playing animations longer than 5 seconds
+  - [ ] Users can pause, stop, or hide animations
+</Callout>
+
+<Callout type="success" title="Color & Contrast">
+  - [ ] Text meets WCAG AA contrast ratio (4.5:1)
+  - [ ] Interactive elements meet 3:1 contrast
+  - [ ] Color is not the only means of conveying information
+  - [ ] Dark mode maintains proper contrast ratios
+</Callout>
+
+## Tools for Testing
+
+- **Keyboard:** Test with keyboard only (no mouse)
+- **Screen Reader:** Test with VoiceOver (macOS), NVDA (Windows), or JAWS
+- **Browser DevTools:** Lighthouse accessibility audit
+- **axe DevTools:** Browser extension for automated accessibility testing
+- **Contrast Checker:** WebAIM Contrast Checker for color verification
+
+## Resources
+
+- [WCAG 2.1 Guidelines](https://www.w3.org/WAI/WCAG21/quickref/)
+- [ARIA Authoring Practices Guide](https://www.w3.org/WAI/ARIA/apg/)
+- [Base UI Accessibility](https://base-ui.com/guides/accessibility)
+- [Radix UI Colors - Accessibility](https://www.radix-ui.com/colors/docs/overview/accessibility)

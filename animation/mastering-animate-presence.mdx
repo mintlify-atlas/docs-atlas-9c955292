@@ -1,0 +1,182 @@
+---
+title: "Mastering Animate Presence"
+description: "Learn how to use the more advanced features of Motion's AnimatePresence component. Reading presence state, manual exit control, directional animations, and nested exits."
+---
+
+When an element leaves the DOM, it's pretty much gone and as a result, there is no way to animate something that no longer exists.
+
+Motion's Animate Presence fixes this. It keeps departing elements mounted long enough to animate out, then removes them. The basic usage is straightforward, wrap conditional content, define `initial`, `animate`, and `exit` states and the component handles the rest.
+
+The more interesting question is what happens when basic entry and exit animations are not enough. Components that need to know they are leaving. Animations that depend on navigation direction. Parent-child exits that coordinate. This is where the real power lives.
+
+## Reading Presence State
+
+Sometimes a component needs to know it is exiting. Maybe it changes its appearance, disables interactions, or triggers side effects. The [`useIsPresent`](https://motion.dev/docs/react-animate-presence#useispresent) hook provides this information.
+
+```tsx
+import { motion, useIsPresent } from "motion/react";
+
+function Card() {
+  const isPresent = useIsPresent();
+  
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      style={{
+        backgroundColor: isPresent ? "blue" : "red"
+      }}
+    >
+      {isPresent ? "Visible" : "Exiting"}
+    </motion.div>
+  );
+}
+```
+
+The hook returns a boolean. True while mounted normally, false during the exit animation. You might use this to:
+
+- Disable buttons while a component exits
+- Switch visual states on unmount
+- Trigger cleanup when departure begins
+
+<Warning>
+One constraint is that `useIsPresent` must be called from a component that is a child of Animate Presence. You cannot inline the hook in the parent where you conditionally render. This is why the example above uses a separate `Card` component rather than putting the motion element directly inside the conditional.
+</Warning>
+
+## Manual Exit Control
+
+Standard exit animations run on a fixed timeline. But some scenarios require manual control. Async cleanup, external animation libraries, or coordinating with systems outside React.
+
+The [`usePresence`](https://motion.dev/docs/react-animate-presence#usepresence) hook returns both the presence state and a `safeToRemove` callback. The component stays mounted until you call it.
+
+```tsx
+import { motion, usePresence } from "motion/react";
+import { useEffect } from "react";
+
+function Card() {
+  const [isPresent, safeToRemove] = usePresence();
+  
+  useEffect(() => {
+    if (!isPresent) {
+      // Perform async cleanup
+      setTimeout(() => {
+        console.log("Cleanup complete");
+        safeToRemove?.();
+      }, 1000);
+    }
+  }, [isPresent, safeToRemove]);
+  
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+    >
+      Card content
+    </motion.div>
+  );
+}
+```
+
+The exit animation starts immediately. Your async work runs in parallel. When both the animation finishes and `safeToRemove` is called, the element unmounts. This is how you could:
+
+- Save draft content before a modal closes
+- Wait for a network request to complete
+- Hand control to [GSAP](https://gsap.com/) or other animation libraries for more complex animations
+
+## Nested Exits
+
+When a parent Animate Presence removes its children, nested exit animations do not fire by default. The parent wins. Sometimes you want both. A modal fading out while its content items also animate. The `propagate` prop enables this.
+
+```tsx
+import { AnimatePresence, motion } from "motion/react";
+
+function App() {
+  const [show, setShow] = useState(true);
+  
+  return (
+    <AnimatePresence>
+      {show && (
+        <motion.div
+          exit={{ opacity: 0 }}
+        >
+          <AnimatePresence propagate>
+            <motion.div exit={{ x: -100 }}>Item 1</motion.div>
+            <motion.div exit={{ x: -100 }}>Item 2</motion.div>
+            <motion.div exit={{ x: -100 }}>Item 3</motion.div>
+          </AnimatePresence>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+```
+
+When true, removing the parent triggers exit animations on both the parent and its nested children. Without it, children vanish instantly when the parent exits.
+
+<Tip>
+Stuff like this goes unnoticed by many, but adding things like this really separates people who care about the details from those who don't.
+</Tip>
+
+## Modes
+
+The `mode` prop controls timing between entering and exiting elements.
+
+### sync
+
+This is where entering and exiting elements animate simultaneously. It's useful for crossfades or when you want to animate both at the same time.
+
+```tsx
+<AnimatePresence mode="sync">
+  {show ? <ComponentA /> : <ComponentB />}
+</AnimatePresence>
+```
+
+<Note>
+You just have to bare in mind that both elements will be visible at the same time so you will have to handle the layouts to avoid conflicts.
+</Note>
+
+### wait
+
+Here the exiting element waits for one to finish before the other starts. I use this when I want a more elegant transition between two elements. When I don't want to have both elements visible at the same time.
+
+```tsx
+<AnimatePresence mode="wait">
+  {show ? <ComponentA /> : <ComponentB />}
+</AnimatePresence>
+```
+
+<Warning>
+One thing to pay note to is that because one element has to finish before the other can start, the duration of the animation will almost be doubled. So if you want something quicker you might have to mess around with the durations.
+</Warning>
+
+### popLayout
+
+Using this mode removes exiting elements from document flow immediately. They become absolutely positioned, allowing surrounding content to reflow.
+
+```tsx
+<AnimatePresence mode="popLayout">
+  {items.map(item => (
+    <motion.div key={item.id} exit={{ opacity: 0 }}>
+      {item.content}
+    </motion.div>
+  ))}
+</AnimatePresence>
+```
+
+<Tip>
+I use this a lot when I need elements to be removed fast without layout shifts, so like list reordering, morphing layout animations etc. It's also handy when I need to run calculations on the parent's bounds, like if I'm doing an animated width container and need the width of the parent to update quickly, inline with the animation.
+</Tip>
+
+## Closing Thoughts
+
+Even though CSS now has `@starting-style` for native exit animations, simple transitions no longer need JavaScript. But the patterns in this article do. Reading presence state, manual exit control, directional animations, coordinated nested exits are things that Animate Presence offers that CSS can't at this point in time.
+
+Animate Presence fills the gap between what CSS can handle and what real interfaces need. The component itself is simple, but hopefully this article has helped you understand how to use it to its fullest.
+
+## Resources
+
+- [Motion AnimatePresence Documentation](https://motion.dev/docs/react-animate-presence) - Full API including useIsPresent, usePresence, and usePresenceData
+- [GSAP](https://gsap.com/) - For complex animation sequences outside React's lifecycle
+- [MDN @starting-style Documentation](https://developer.mozilla.org/en-US/docs/Web/CSS/@starting-style) - Emerging CSS approach to entry animations

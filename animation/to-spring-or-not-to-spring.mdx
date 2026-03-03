@@ -1,0 +1,250 @@
+---
+title: "To Spring or Not To Spring"
+description: "Strategies for choosing between easing curves and springs in interface motion design."
+---
+
+Whenever I'm adding motion to something, one question comes up again and again. Should I use an easing curve, or a spring?
+
+On the surface it feels like a stylistic choice, but in practice it is usually the difference between an interaction feeling obvious and one that feels subtly wrong.
+
+Early in my time developing, I used to bounce between the two without much structure, trying an ease, then a spring, tweaking numbers until it stopped bothering me and moving on. That approach works sometimes, but it also produces a lot of motion that feels off in ways that are hard to explain.
+
+What helped me was realizing that easing curves and springs are not interchangeable tools. They are not just two different ways to animate the same thing. They come from very different ways of thinking about motion, and they play different roles in an interface.
+
+Once that clicked, the decision stopped being so hard.
+
+## Start with the Interaction, Not the Animation
+
+Before touching curves, parameters, or libraries, I try to step back and ask a single question: is this motion reacting to the user, or is it the system speaking?
+
+That distinction ends up doing a surprising amount of work.
+
+If the motion needs to stay attached to the user, survive interruption, or preserve velocity, you are already leaning toward a spring. If the motion is the system announcing a change, guiding attention, or helping something land clearly, easing is usually the right model.
+
+Framed this way, you are no longer choosing between animation techniques. You are choosing the role motion plays in the interaction.
+
+## The Roles Motion Tends to Play
+
+There's a few kinds of motion that come up repeatedly in interfaces. Each has different needs, and each tends to align better with either easing curves or springs.
+
+### None
+
+Not everything needs animation, and in some cases animation actively makes things worse. High-frequency interactions like typing, keyboard navigation, or fast toggles often feel slower and noisier when motion is added without a clear purpose.
+
+<Tip>
+Choosing no motion is still a design decision. It is a choice to prioritise immediacy and predictability over expressiveness, and very often it's the right call.
+</Tip>
+
+### Springs
+
+These work best when motion is directly tied to user input. Dragging, flicking, pressing, and gesture-driven interactions benefit from springs because they remain responsive even when interrupted and reflect the energy of the input itself.
+
+They mimic real life, where objects have physics and momentum, which helps the interface feel more connected to the user's actions. Apple's Human Interface Guidelines call this out explicitly. Because springs do not assume the interaction is finished, they can adapt fluidly to changes in input.
+
+<Tabs>
+  <Tab title="Spring Example">
+    ```tsx
+    import { motion } from "motion/react";
+    
+    function DraggableItem() {
+      return (
+        <motion.div
+          drag
+          dragElastic={0.5}
+          dragMomentum={false}
+          onDragEnd={handleDragEnd}
+          whileDrag={{ scale: 1.1 }}
+        />
+      );
+    }
+    ```
+    
+    When you drag the ball and release it, the spring version snaps back in a way that reflects how you moved it. Fast drags feel snappier, slow drags feel heavier, and the motion feels connected to your action.
+  </Tab>
+  <Tab title="Easing Alternative">
+    ```tsx
+    import { motion } from "motion/react";
+    
+    function DraggableItem() {
+      return (
+        <motion.div
+          animate={{ x: 0 }}
+          transition={{ duration: 0.4, ease: "easeOut" }}
+        />
+      );
+    }
+    ```
+    
+    Switching the same interaction to an easing curve breaks that illusion, because the system waits for the input to end before politely running an animation.
+  </Tab>
+</Tabs>
+
+<Warning>
+If continuity and interruption matter, easing curves tend to fall apart. Springs hold up. The tradeoff is that springs can feel restless or overactive when the system is simply announcing a state change, which is why they are not a universal solution.
+</Warning>
+
+### Linear
+
+Linear motion often gets dismissed because it is misused. For spatial movement it almost always feels mechanical, since objects in the real world rarely move at a constant rate.
+
+Where linear motion does make sense is when the animation represents time itself. Progress bars, loaders, scrubbing interactions, etc. benefit from it because it preserves a one-to-one relationship between time and progress.
+
+```css
+.progress-bar {
+  transition: width 2s linear;
+}
+```
+
+<Note>
+If it eased in or out, the relationship between time and progress would break down, making it harder to understand.
+</Note>
+
+### Ease-In, Ease-Out, and Ease-In-Out
+
+<Accordion title="Ease-Out">
+
+Ease-out starts quickly and slows down at the end, which is why it works so well for entrances and feedback. The interface feels responsive, but the softer landing gives the eye time to catch up. It is less about realism and more about communication.
+
+```css
+.element {
+  transition: transform 0.2s ease-out;
+}
+```
+
+While it breaks down if interruption or velocity matters, it remains a solid choice for system-driven responses.
+
+</Accordion>
+
+<Accordion title="Ease-In">
+
+Ease-in does the opposite, starting slowly and accelerating away. This usually feels wrong for entrances because the delay reads as lag, but it works well for exits where lingering pulls attention in the wrong direction.
+
+```css
+.element {
+  transition: transform 0.2s ease-in;
+}
+```
+
+In those cases it acknowledges the action and then gets out of the way.
+
+</Accordion>
+
+<Accordion title="Ease-In-Out">
+
+Ease-in-out spreads attention more evenly across the motion, making it a good fit for transitions between two equally important states like switching views or modes.
+
+```css
+.element {
+  transition: transform 0.3s ease-in-out;
+}
+```
+
+It feels neutral and composed, which is useful, but easy to overuse. When everything eases in and out interfaces can start to feel sluggish and overly polite.
+
+</Accordion>
+
+## Under The Hood
+
+In order to choose between easing curves and springs, it helps to understand how they work under the hood.
+
+### Easing Curves
+
+Easing curves describe how motion progresses over a fixed duration. You decide how long the animation should take, and then decide how that time is distributed. In CSS and most design tools, this is expressed using cubic Bézier curves.
+
+```css
+transition-timing-function: cubic-bezier(x1, y1, x2, y2);
+```
+
+<Accordion title="x1, y1 - First Control Point">
+
+The first control point affects responsiveness. Lower values ease into motion gradually, which can feel deliberate but can also introduce hesitation if overused.
+
+Higher values ramp progress earlier, making motion start almost immediately, which is critical for things like presses and hovers where any delay is felt instantly.
+
+</Accordion>
+
+<Accordion title="x2, y2 - Second Control Point">
+
+The second control point shapes how motion ends. Higher values extend the landing and make motion feel calm and composed, while lower values shorten the deceleration and can make things feel sharp or tense.
+
+If an animation feels uncomfortable at the end, this is almost always the place to look.
+
+</Accordion>
+
+<Accordion title="Duration">
+
+If an animation feels slow, it is almost never because the easing is wrong. It is because the duration is too long. Shortening timing nearly always improves perceived responsiveness before any curve adjustment does.
+
+**Recommended durations:**
+- Presses and hovers: 120ms - 180ms
+- Small state changes: 180ms - 260ms
+- Larger transitions: up to 300ms
+
+<Warning>
+Beyond 300ms, motion starts to feel intentional rather than reactive, which is not inherently bad, but it does communicate something different.
+</Warning>
+
+</Accordion>
+
+### Springs
+
+Springs flip the model around. Instead of defining how long something should take, you describe how the system behaves and let it resolve naturally. In libraries like Motion, that often looks like this:
+
+```tsx
+transition={{
+  type: "spring",
+  stiffness: 900,
+  damping: 80,
+  mass: 10,
+}}
+```
+
+The names vary between libraries, but the concepts remain consistent. The reason springs feel different is simple: they do not assume the interaction is finished, which makes them resilient to interruption.
+
+<Accordion title="Stiffness">
+
+Stiffness controls how strongly the system pulls toward the target, largely shaping how quickly motion begins.
+
+</Accordion>
+
+<Accordion title="Damping">
+
+Damping controls how quickly energy is removed, affecting whether motion settles cleanly or oscillates.
+
+</Accordion>
+
+<Accordion title="Mass">
+
+Mass defines how heavy the object feels, shaping how stiffness and damping are perceived rather than acting independently.
+
+</Accordion>
+
+<Tip>
+Tuning springs is often about finding the right balance between responsiveness and stability. High stiffness with low damping can feel snappy but unstable, while high damping with low stiffness can feel sluggish but secure.
+</Tip>
+
+## The Key Difference
+
+Easing curves have a predefined start and end in time, whereas springs do not.
+
+That single distinction explains most of the behavior you see in practice, including why springs survive interruption so well while easing curves tend to fall apart as soon as the user changes their mind.
+
+## Conclusion
+
+At a certain point, choosing between easing and springs stops being a technical decision and starts becoming a design one. Motion is just another way the interface communicates.
+
+Once you are clear on what an interaction is trying to convey, the choice usually reveals itself without much hassle.
+
+The goal is not to animate more, but to animate with intent, so that motion earns its place and fades into the experience instead of drawing attention to itself.
+
+However there's always room to try things out. Don't be afraid to break the rules once in a while. At the end of the day, what matters most is that the interaction feels right.
+
+## Resources
+
+- [Animate with Springs (WWDC23)](https://developer.apple.com/videos/play/wwdc2023/10158/) - Apple's guide to spring animations
+- [The Beauty of Bézier Curves](https://www.youtube.com/watch?v=aVwxzDHniEw) - Freya Holmér's excellent explanation
+- [Motion](https://motion.dev/) - JavaScript animation library
+- [Animation for Attention and Comprehension](https://www.nngroup.com/articles/animation-usability/) - Nielsen Norman Group research
+- [MDN cubic-bezier() documentation](https://developer.mozilla.org/en-US/docs/Web/CSS/easing-function#cubic_b%C3%A9zier_easing_function)
+- [Material Design Motion Guidelines](https://m3.material.io/styles/motion/overview)
+- [Apple Human Interface Guidelines on Motion](https://developer.apple.com/design/human-interface-guidelines/motion)

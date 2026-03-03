@@ -1,0 +1,254 @@
+---
+title: "Contributing to the Wiki"
+description: "Guidelines for contributing articles, demos, and improvements to the User Interface Wiki"
+---
+
+Contributions are welcome and encouraged. Whether you're fixing a typo, improving an example, or writing an entirely new article, your input helps build a better resource for the community.
+
+## Getting Started
+
+<Steps>
+  <Step title="Fork and Clone">
+    Fork the repository and clone it to your local machine:
+    ```bash
+    git clone https://github.com/your-username/userinterface-wiki.git
+    cd userinterface-wiki
+    ```
+  </Step>
+  
+  <Step title="Install Dependencies">
+    Install dependencies using pnpm:
+    ```bash
+    pnpm install
+    ```
+  </Step>
+  
+  <Step title="Start Development Server">
+    Run the development server to preview your changes:
+    ```bash
+    pnpm dev
+    ```
+    This starts both the Next.js dev server and watches for playground/demo changes.
+  </Step>
+</Steps>
+
+## Writing Articles
+
+Articles live in the `content/` directory as MDX files. Each article has its own folder structure that keeps content and demos organized together.
+
+### Article Structure
+
+```
+content/
+  your-article-name/
+    index.mdx           # Main article content
+    demos/
+      index.ts          # Demo exports
+      demo-name/
+        index.tsx       # Demo component
+        styles.module.css
+```
+
+### Required Frontmatter
+
+Every article must include frontmatter with metadata:
+
+```mdx
+---
+title: "Your Article Title"
+description: "Brief description for SEO and previews"
+date: "2026-03-03"
+author: "your-github-username"
+icon: "code"
+---
+```
+
+### Importing Demos
+
+Import and display demos from the colocated `demos/` directory:
+
+```mdx
+import { YourDemo } from "./demos";
+
+<Figure>
+  <YourDemo />
+  <Caption>Description of what the demo demonstrates</Caption>
+</Figure>
+```
+
+## Code Standards
+
+The wiki follows strict conventions to ensure consistency and maintainability. These standards are documented in `AGENTS.md` and enforced through automated linting.
+
+### Naming Conventions
+
+All names use **kebab-case** throughout the project:
+
+- **Files**: `use-audio.ts`, `styles.module.css`
+- **Directories**: `button-group/`, `mastering-animate-presence/`
+- **CSS classes**: `.button-primary`, `.nav-item`
+- **URL slugs**: `/12-principles-of-animation`
+
+**Exception**: React component function names use PascalCase (e.g., `function Button()`).
+
+### Component Guidelines
+
+Use function declarations with explicit TypeScript interfaces:
+
+```tsx
+interface ButtonProps {
+  variant?: "primary" | "secondary";
+  children: ReactNode;
+}
+
+function Button({ variant = "primary", children }: ButtonProps) {
+  return (
+    <button className={styles.button} data-variant={variant}>
+      {children}
+    </button>
+  );
+}
+
+export { Button };
+```
+
+### Styling Standards
+
+- Use CSS Modules for all component styles (`.module.css`)
+- Leverage theme variables from `/styles/styles.theme.css`
+- Never hardcode colors or dimensions
+- Use data attributes for variants
+
+```css
+.button {
+  background: var(--gray-12);
+  font-size: 14px;
+  font-weight: var(--font-weight-medium);
+  letter-spacing: var(--font-letter-spacing-14px);
+}
+
+.button[data-variant="secondary"] {
+  background: var(--gray-6);
+}
+```
+
+## Animation Best Practices
+
+When creating demos with motion, follow these guidelines:
+
+### Timing
+
+- **Micro-interactions**: 100-200ms
+- **Standard transitions**: 200-300ms
+- **Page transitions**: 300-400ms
+- **Never exceed 300ms** for user-initiated actions
+
+### Easing
+
+- Use `ease-out` for entrances (arrive fast, settle gently)
+- Use `ease-in` for exits (build momentum before departure)
+- Use spring physics for organic, overshoot-and-settle effects
+
+### Accessibility
+
+Respect user preferences for reduced motion:
+
+```css
+@media (prefers-reduced-motion: reduce) {
+  .animated {
+    animation: none;
+    transition: none;
+  }
+}
+```
+
+## Interactive Demos
+
+The wiki includes two types of interactive components:
+
+### Standard Demos
+
+Standard demos can import from the main codebase using path aliases:
+
+```tsx
+import { Button } from "@/components/button";
+```
+
+### Playground Demos
+
+Playground demos use Sandpack and must be **self-contained**. They cannot import from the codebase:
+
+```tsx
+// Define components inline
+function Button({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
+  return <button className={styles.button} onClick={onClick}>{children}</button>;
+}
+
+function Controls({ children }: { children: React.ReactNode }) {
+  return <div className={styles.controls}>{children}</div>;
+}
+```
+
+For boolean toggles, use "Toggle" as the button label rather than swapping between states:
+
+✅ **Correct**: `<Button onClick={toggle}>Toggle</Button>`  
+❌ **Incorrect**: `<Button>{visible ? "Hide" : "Show"}</Button>`
+
+## Audio Transcription
+
+Articles are transcribed using Eleven Labs to provide audio versions. Due to API limitations:
+
+- **Do not** include transcription in your pull request
+- **Mention** in your PR description if you'd like audio transcription
+- The maintainer will handle transcription after the article is merged
+
+## Before Submitting
+
+Run the linter to catch issues:
+
+```bash
+pnpm lint
+```
+
+This uses Biome to check for formatting, naming conventions, and code quality issues.
+
+## Pull Request Process
+
+<Steps>
+  <Step title="Create a Branch">
+    Create a descriptive branch for your changes:
+    ```bash
+    git checkout -b feature/your-article-name
+    ```
+  </Step>
+  
+  <Step title="Commit Your Changes">
+    Write clear commit messages that describe the changes:
+    ```bash
+    git add .
+    git commit -m "Add article on advanced animation patterns"
+    ```
+  </Step>
+  
+  <Step title="Open a Pull Request">
+    Push your branch and open a pull request on GitHub:
+    ```bash
+    git push origin feature/your-article-name
+    ```
+    
+    In your PR description, explain:
+    - What the article covers
+    - Any new demos or components added
+    - Whether you'd like audio transcription
+  </Step>
+</Steps>
+
+## Questions and Feedback
+
+If you have questions about contributing, suggestions for new articles, or feedback on existing content:
+
+- **Open an issue** on GitHub for discussions and suggestions
+- **Join the conversation** in pull request comments
+- **Reference the standards** in `AGENTS.md` for detailed technical guidance
+
+Thank you for helping make the User Interface Wiki a valuable resource for the community.

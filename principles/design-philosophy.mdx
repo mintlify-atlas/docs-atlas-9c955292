@@ -1,0 +1,186 @@
+---
+title: 'Design Philosophy'
+description: 'Our approach to building interfaces that feel human, responsive, and intentional. Core principles for creating experiences users love.'
+icon: 'lightbulb'
+---
+
+Great design isn't about following rules—it's about understanding intent. When you build interfaces with purpose, clarity, and attention to how people actually think, the details start to take care of themselves.
+
+## Core Principles
+
+These foundational ideas guide every design decision in this project.
+
+<Accordion title="Make it Feel Human">
+
+### Interfaces should respect how people actually work, not how specs say they should work.
+
+Every interface that feels right has something in common: it respects how you actually think. Motion on the web is more than flair—it's communication. It guides users, reassures them, and delights them while transforming routine workflows into memorable experiences.
+
+**Key Insight:** Great animation is invisible. Users don't think "nice ease-out curve." They think "this feels good." They don't know why. They just know they want to come back.
+
+<Note>
+When everything is fast, craft becomes the differentiator. When AI can generate any feature, the feeling of using software becomes the product.
+</Note>
+
+</Accordion>
+
+<Accordion title="Animate with Intent">
+
+### Motion should earn its place or get out of the way.
+
+Not all animation is created equal. The difference between good and great often comes down to intention. Great animation is purposeful, subtle, and rooted in timeless principles.
+
+**Decision Framework:**
+
+Before adding motion, ask: Is this motion reacting to the user, or is it the system speaking?
+
+- **User-driven interactions** (dragging, swiping, pressing) → Use physics-based springs that preserve velocity and survive interruption
+- **System announcements** (confirmations, state changes, notifications) → Use easing curves with clear start and end points
+- **High-frequency actions** (typing, keyboard nav, fast toggles) → Often better with no motion at all
+
+<Tip>
+The goal is not to animate more, but to animate with intent, so that motion fades into the experience instead of drawing attention to itself.
+</Tip>
+
+**Timing Guidelines:**
+- Micro-interactions: 100-200ms
+- Standard transitions: 200-300ms
+- Page transitions: 300-400ms
+- Never exceed 300ms for user-initiated actions
+
+</Accordion>
+
+<Accordion title="Respect Cognitive Limits">
+
+### Design for how the brain actually processes information.
+
+The average person can hold about 7 (±2) items in working memory. When dealing with complex data, chunk it or group it in a way that makes sense. Showing blobs of text is like trying to find a needle in a haystack.
+
+**Practical Applications:**
+- Break long strings into meaningful groups
+- Use progressive disclosure to reveal complexity only when needed
+- Limit choices to prevent decision paralysis
+- Guide attention through staging and sequencing
+
+<Note>
+Restaurant menus understand this intuitively. The best ones don't list 200 dishes—they curate what you should see. Your interface should too.
+</Note>
+
+</Accordion>
+
+<Accordion title="Speed is a Feature">
+
+### Productivity soars when neither the user nor the system has to wait.
+
+Under 400ms, interactions feel instant. Above it, you notice. Way above it, you start wondering if something broke.
+
+The Doherty Threshold tells us that the magic number is 400 milliseconds. Below that threshold, the interaction feels like an extension of your hand. Above it, you're waiting on the machine.
+
+<Tip>
+If you can't make something fast, make it **feel** fast:
+- Use optimistic UI patterns
+- Show skeleton screens during loading
+- Provide immediate visual feedback
+- Use progress indicators for long operations
+</Tip>
+
+The best interactions are the ones where you never think about speed at all.
+
+</Accordion>
+
+<Accordion title="Be Liberal in What You Accept">
+
+### Make the system work for the user, not the other way around.
+
+Postel's Law: Be conservative in what you send, be liberal in what you accept.
+
+Originally a networking principle, this translates perfectly to interface design. Your inputs should accept messy human data and normalize it into clean output.
+
+Users don't think in formats. They think in meaning. When someone types "jan 15 2024" they mean the same thing as "2024-01-15". Your interface should understand that.
+
+**Validate generously, format strictly.**
+
+</Accordion>
+
+<Accordion title="Add Layers of Feedback">
+
+### Use multiple senses to reinforce actions and build presence.
+
+Your ears are faster than your eyes. The auditory cortex processes sound in about 25ms, while visual processing takes nearly ten times longer. When you need immediate feedback, sound gets there first.
+
+**When to Use Sound:**
+- Confirmations for major actions (payments, uploads)
+- Errors and warnings that can't be overlooked
+- State changes that reinforce transitions
+- Notifications that interrupt without requiring visual attention
+
+<Note>
+Sound should complement, not replace visual feedback. Every audio cue should have a visual equivalent. Users who can't hear, or choose not to, should lose nothing functional.
+</Note>
+
+A button that clicks feels faster than one that doesn't, even when the visual feedback is identical. Sound bridges the gap between action and response in a way that visual feedback alone cannot.
+
+<Tip>
+Always respect user preferences:
+- Provide explicit audio toggles in settings
+- Use `prefers-reduced-motion` as a proxy for reduced audio
+- Make all sound optional, never required
+</Tip>
+
+</Accordion>
+
+<Accordion title="Polish is the Differentiator">
+
+### When features are commoditized, craft becomes the product.
+
+We live in an age of AI-generated interfaces and ship-fast culture. Polish feels like a luxury. Animation feels like scope creep. But when everything is fast, craft becomes the differentiator.
+
+Think about the products you keep coming back to. The ones you recommend to friends. They probably aren't the most feature-rich. They're the ones that **feel right**. The ones where someone clearly gave a damn.
+
+**That's the goal: to make something people love.**
+
+It's not about adding more features. It's about making every interaction feel intentional, every transition feel smooth, every detail feel considered.
+
+</Accordion>
+
+## Design in Practice
+
+These principles aren't abstract theory—they're practical guidelines that shape real decisions:
+
+### Making Targets Easy to Hit
+
+Fitts's Law tells us bigger targets are easier to click. In practice, this means:
+- Expanding hit areas beyond visible boundaries
+- Adding generous padding to interactive elements
+- Considering touch targets on mobile (minimum 44×44px)
+
+### Choosing the Right Motion
+
+The decision between springs and easing curves isn't stylistic—it's functional:
+- Springs for user-controlled motion (dragging, swiping)
+- Easing curves for system-initiated transitions
+- Linear motion for representing time (progress bars, loaders)
+- No motion for high-frequency interactions
+
+### Managing Complexity
+
+Hick's Law reminds us that more choices increase decision time:
+- Use progressive disclosure to hide complexity
+- Group related options together
+- Provide smart defaults
+- Make common actions obvious, advanced features discoverable
+
+## The Unifying Thread
+
+All of these principles point to the same truth: **great design disappears**.
+
+When an interface respects how people think, moves at the speed of thought, and guides attention without demanding it, users don't notice the design. They just get their work done and feel good doing it.
+
+That's not luck. That's intention.
+
+## Further Reading
+
+- [12 Principles of Animation](/animation/12-principles-of-animation) - How classic animation principles apply to interfaces
+- [To Spring or Not To Spring](/animation/to-spring-or-not-to-spring) - Choosing the right animation approach
+- [Laws of UX](/principles/laws-of-ux) - Psychological principles behind great interfaces
+- [Sounds on the Web](/audio/sounds-on-the-web) - Using audio to enhance feedback and presence

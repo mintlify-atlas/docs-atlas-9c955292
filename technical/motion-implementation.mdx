@@ -1,0 +1,656 @@
+---
+title: Motion Implementation Patterns
+description: Advanced animation patterns using Motion (Framer Motion) with React 19 and the React Compiler
+icon: 'sparkles'
+---
+
+# Motion Implementation Patterns
+
+This guide documents production animation patterns using Motion (Framer Motion) in a Next.js 16 + React 19 environment with React Compiler optimization.
+
+## Installation & Setup
+
+### Package Configuration
+
+```bash
+npm install motion
+```
+
+```typescript
+import { motion, AnimatePresence } from "motion/react";
+```
+
+<Warning>
+  Use the `motion/react` import path, not `framer-motion`. Motion is the new package name optimized for React 19.
+</Warning>
+
+## Core Patterns
+
+### Basic Motion Component
+
+```typescript
+import { motion } from "motion/react";
+
+function Card() {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: "easeOut" }}
+    >
+      Content
+    </motion.div>
+  );
+}
+```
+
+### Motion with Base UI Components
+
+Integrate Motion with headless component libraries:
+
+```typescript components/button/index.tsx
+import { Button as BaseButton } from "@base-ui/react/button";
+import { motion } from "motion/react";
+
+const MotionBaseButton = motion.create(BaseButton);
+
+function Button(props: ButtonProps) {
+  return (
+    <MotionBaseButton
+      whileTap={{ scale: 0.98 }}
+      transition={{ duration: 0.1 }}
+      {...props}
+    />
+  );
+}
+```
+
+**Key Technique:**
+- `motion.create()` wraps third-party components
+- Preserves all original component functionality
+- Adds Motion animation props
+
+## AnimatePresence
+
+### Basic Exit Animations
+
+```typescript components/card.tsx
+import { AnimatePresence, motion } from "motion/react";
+import { useState } from "react";
+
+function Demo() {
+  const [isVisible, setIsVisible] = useState(true);
+
+  return (
+    <>
+      <AnimatePresence>
+        {isVisible && (
+          <motion.div
+            key="card"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            transition={{ duration: 0.4, ease: [0.19, 1, 0.22, 1] }}
+          >
+            Content
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <button onClick={() => setIsVisible(!isVisible)}>Toggle</button>
+    </>
+  );
+}
+```
+
+<Warning>
+  Always provide a unique `key` prop to elements inside AnimatePresence. The key determines when an element is considered removed.
+</Warning>
+
+### useIsPresent Hook
+
+Track whether a component is currently mounted:
+
+```typescript demos/presence-state.tsx
+import { AnimatePresence, motion, useIsPresent } from "motion/react";
+
+const definitions = {
+  present: {
+    word: "present",
+    definition: "In a particular place; being in view or at hand."
+  },
+  exiting: {
+    word: "exit",
+    definition: "To go out of or leave a place."
+  }
+};
+
+function Card() {
+  const isPresent = useIsPresent();
+  const entry = definitions[isPresent ? "present" : "exiting"];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.9 }}
+      transition={{ duration: 0.4, ease: [0.19, 1, 0.22, 1] }}
+    >
+      <span>{entry.word}</span>
+      <p>{entry.definition}</p>
+    </motion.div>
+  );
+}
+
+export function PresenceState() {
+  const [isVisible, setIsVisible] = useState(true);
+
+  return (
+    <AnimatePresence>
+      {isVisible && <Card key="card" />}
+    </AnimatePresence>
+  );
+}
+```
+
+**Use Case:** Update content during exit animation based on presence state.
+
+### AnimatePresence Modes
+
+<Tabs items={['sync', 'wait', 'popLayout']}>
+  <Tab value="sync">
+    ```typescript
+    <AnimatePresence mode="sync">
+      <motion.div key={key}>
+        {content}
+      </motion.div>
+    </AnimatePresence>
+    ```
+    
+    **Behavior:** Exit and enter animations run simultaneously (default).
+    
+    **Use Case:** Crossfades, overlapping transitions.
+  </Tab>
+  <Tab value="wait">
+    ```typescript
+    <AnimatePresence mode="wait">
+      <motion.div key={key}>
+        {content}
+      </motion.div>
+    </AnimatePresence>
+    ```
+    
+    **Behavior:** Wait for exit animation to complete before starting enter.
+    
+    **Use Case:** Page transitions, tab panels.
+  </Tab>
+  <Tab value="popLayout">
+    ```typescript
+    <AnimatePresence mode="popLayout">
+      <motion.div key={key}>
+        {content}
+      </motion.div>
+    </AnimatePresence>
+    ```
+    
+    **Behavior:** Exiting element removed from layout immediately.
+    
+    **Use Case:** Lists, grids where remaining items reflow.
+  </Tab>
+</Tabs>
+
+### Modes Comparison Demo
+
+```typescript demos/modes-demo.tsx
+import { AnimatePresence, motion } from "motion/react";
+import { useState } from "react";
+
+type Mode = "sync" | "wait" | "popLayout";
+
+const modes: Mode[] = ["sync", "wait", "popLayout"];
+
+function ModeExample({ mode, show }: { mode: Mode; show: boolean }) {
+  return (
+    <div>
+      <div>{mode}</div>
+      <div>
+        <AnimatePresence mode={mode}>
+          <motion.div
+            key={show ? "a" : "b"}
+            initial={{ opacity: 0, scale: 0.8, filter: "blur(2px)" }}
+            animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
+            exit={{ opacity: 0, scale: 0.8, filter: "blur(2px)" }}
+            transition={{ duration: 0.4, ease: [0.19, 1, 0.22, 1] }}
+          >
+            {show ? "A" : "B"}
+          </motion.div>
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+}
+
+export function ModesDemo() {
+  const [show, setShow] = useState(true);
+
+  return (
+    <div>
+      <div>
+        {modes.map((mode) => (
+          <ModeExample key={mode} mode={mode} show={show} />
+        ))}
+      </div>
+      <button onClick={() => setShow((prev) => !prev)}>Toggle</button>
+    </div>
+  );
+}
+```
+
+## Spring Configurations
+
+### Spring vs Easing Comparison
+
+<Tabs items={['Easing', 'Spring']}>
+  <Tab value="Easing">
+    ```typescript
+    const transition = {
+      duration: 0.5,
+      ease: [0.19, 1, 0.22, 1], // Custom cubic bezier
+    };
+    ```
+    
+    **Characteristics:**
+    - Fixed duration
+    - Predictable timing
+    - Better for choreographed sequences
+  </Tab>
+  <Tab value="Spring">
+    ```typescript
+    const transition = {
+      type: "spring",
+      stiffness: 300,
+      damping: 15,
+      mass: 1,
+    };
+    ```
+    
+    **Characteristics:**
+    - Dynamic duration based on physics
+    - Natural overshoot and settle
+    - Better for interactive, organic motion
+  </Tab>
+</Tabs>
+
+### Production Spring Values
+
+```typescript demos/ease-vs-spring.tsx
+import { motion, type Transition } from "motion/react";
+import { useState } from "react";
+
+type Animation = {
+  label: string;
+  transition: Transition;
+};
+
+const ease: Animation = {
+  label: "Easing",
+  transition: {
+    duration: 0.5,
+    ease: [0.19, 1, 0.22, 1],
+  },
+};
+
+const spring: Animation = {
+  label: "Spring",
+  transition: {
+    type: "spring",
+    stiffness: 300,
+    damping: 15,
+    mass: 1,
+  },
+};
+
+const animations = [ease, spring];
+
+function Box({ label, isExpanded, transition }: BoxProps) {
+  return (
+    <div>
+      <motion.div
+        animate={{
+          width: isExpanded ? 128 : 32,
+          height: isExpanded ? 128 : 32,
+        }}
+        transition={transition}
+      />
+      <span>{label}</span>
+    </div>
+  );
+}
+
+export function EaseVsSpring() {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  return (
+    <div>
+      {animations.map(({ label, transition }) => (
+        <Box
+          key={label}
+          label={label}
+          isExpanded={isExpanded}
+          transition={transition}
+        />
+      ))}
+      <button onClick={() => setIsExpanded((prev) => !prev)}>
+        Animate
+      </button>
+    </div>
+  );
+}
+```
+
+### Spring Parameter Reference
+
+| Parameter | Range | Effect |
+|-----------|-------|--------|
+| `stiffness` | 100-500 | Higher = faster oscillation, snappier feel |
+| `damping` | 10-40 | Higher = less overshoot, quicker settle |
+| `mass` | 0.5-2 | Higher = heavier feel, slower motion |
+
+**Common Presets:**
+
+```typescript
+// Gentle
+{ type: "spring", stiffness: 200, damping: 20, mass: 1 }
+
+// Snappy (default)
+{ type: "spring", stiffness: 300, damping: 15, mass: 1 }
+
+// Bouncy
+{ type: "spring", stiffness: 400, damping: 10, mass: 1 }
+
+// Heavy
+{ type: "spring", stiffness: 250, damping: 25, mass: 2 }
+```
+
+## Advanced Patterns
+
+### Page Transitions
+
+```typescript components/page-transition/index.tsx
+import { motion } from "motion/react";
+import { usePathname } from "next/navigation";
+
+export function PageTransition({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+
+  return (
+    <motion.div
+      key={pathname}
+      initial={{ opacity: 0, filter: "blur(4px)" }}
+      animate={{ opacity: 1, filter: "blur(0px)" }}
+      exit={{ opacity: 0, filter: "blur(4px)" }}
+      transition={{
+        delay: 0.1,
+        duration: 0.4,
+        ease: "easeInOut",
+      }}
+    >
+      {children}
+    </motion.div>
+  );
+}
+```
+
+**Technique:**
+- Key on `pathname` triggers animation on route change
+- Blur effect adds depth to transition
+- Delay prevents flashing on fast navigation
+
+### MotionValues and Velocity
+
+```typescript demos/spring-with-velocity.tsx
+import { animate, motion, useMotionValue, useVelocity } from "motion/react";
+import { useRef } from "react";
+
+function Demo() {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+  const velocity = useVelocity(x);
+
+  const handleDrag = (event: React.PointerEvent) => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const targetX = event.clientX - rect.left - 16;
+    const currentVelocity = velocity.get();
+
+    const transition = {
+      type: "spring" as const,
+      stiffness: 300,
+      damping: 20,
+      velocity: currentVelocity
+    };
+
+    animate(x, targetX, transition);
+    animate(y, 0, transition);
+  };
+
+  return (
+    <div ref={containerRef} onPointerDown={handleDrag}>
+      <motion.div style={{ x, y }} />
+    </div>
+  );
+}
+```
+
+**Advanced Technique:**
+- `useMotionValue` creates imperative animation state
+- `useVelocity` tracks rate of change
+- Pass velocity to spring for momentum preservation
+
+### Transform Performance
+
+```typescript
+// ✅ GPU-accelerated properties
+<motion.div
+  animate={{
+    x: 100,           // transform: translateX()
+    y: 100,           // transform: translateY()
+    scale: 1.5,       // transform: scale()
+    rotate: 45,       // transform: rotate()
+    opacity: 0.5,     // opacity
+  }}
+/>
+
+// ❌ Avoid layout-triggering properties
+<motion.div
+  animate={{
+    width: 200,       // Triggers layout recalc
+    height: 200,      // Triggers layout recalc
+    top: 100,         // Triggers layout recalc
+  }}
+/>
+```
+
+<Warning>
+  Animating `width`, `height`, `top`, `left` triggers layout recalculation. Use `transform` properties when possible.
+</Warning>
+
+### Layout Animations
+
+When you must animate layout properties:
+
+```typescript
+<motion.div layout transition={{ duration: 0.3 }}>
+  {content}
+</motion.div>
+```
+
+**Use Cases:**
+- Reordering lists
+- Expanding/collapsing containers
+- Grid rearrangement
+
+## Timing Standards
+
+### Duration Guidelines
+
+| Interaction Type | Duration | Easing |
+|------------------|----------|--------|
+| Micro-interactions | 100-200ms | ease-out |
+| Button feedback | 100-150ms | ease-out |
+| State transitions | 200-300ms | Custom cubic bezier |
+| Page transitions | 300-400ms | ease-in-out |
+| Complex animations | 400-600ms | Spring or custom |
+
+<Warning>
+  Never exceed 300ms for user-initiated actions. Longer animations feel sluggish.
+</Warning>
+
+### Custom Easing Functions
+
+```typescript
+// Smooth ease-out (recommended default)
+ease: [0.19, 1, 0.22, 1]
+
+// Sharp ease-out
+ease: [0.4, 0, 0.2, 1]
+
+// Ease-in-out
+ease: [0.45, 0, 0.55, 1]
+
+// Anticipation (ease-in)
+ease: [0.55, 0.085, 0.68, 0.53]
+```
+
+## Reduced Motion
+
+### Respecting User Preferences
+
+```typescript
+import { motion, useReducedMotion } from "motion/react";
+
+function Component() {
+  const shouldReduceMotion = useReducedMotion();
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: shouldReduceMotion ? 0 : 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{
+        duration: shouldReduceMotion ? 0.01 : 0.3
+      }}
+    >
+      Content
+    </motion.div>
+  );
+}
+```
+
+### CSS Alternative
+
+```css styles.module.css
+.animated {
+  transition: transform 0.3s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animated {
+    transition: none;
+  }
+}
+```
+
+## React Compiler Optimization
+
+### Memoization Patterns
+
+React Compiler automatically optimizes these patterns:
+
+```typescript
+// Automatically memoized by React Compiler
+function Component() {
+  const transition = {
+    duration: 0.3,
+    ease: [0.19, 1, 0.22, 1]
+  };
+
+  return (
+    <motion.div transition={transition}>
+      Content
+    </motion.div>
+  );
+}
+```
+
+<Warning>
+  Do not manually use `useMemo` or `useCallback` with React Compiler enabled. The compiler handles memoization automatically.
+</Warning>
+
+### Server Component Boundaries
+
+```typescript
+// ✅ Server Component (default)
+export function Layout({ children }) {
+  return <div>{children}</div>;
+}
+
+// ✅ Client Component (uses Motion)
+"use client";
+export function AnimatedCard() {
+  return <motion.div />;
+}
+```
+
+**Rule:** Only add `"use client"` to components that use Motion or other client-side features.
+
+## Performance Best Practices
+
+### Bundle Size Optimization
+
+```typescript
+// ✅ Named imports (tree-shakeable)
+import { motion, AnimatePresence } from "motion/react";
+
+// ❌ Avoid if tree-shaking fails
+import * as Motion from "motion/react";
+```
+
+### Dynamic Imports for Heavy Animations
+
+```typescript
+import dynamic from "next/dynamic";
+
+const HeavyAnimation = dynamic(
+  () => import("./heavy-animation").then(m => m.HeavyAnimation),
+  { ssr: false }
+);
+```
+
+### Animate Presence with Lists
+
+```typescript
+<AnimatePresence>
+  {items.map((item) => (
+    <motion.div
+      key={item.id}
+      initial={{ opacity: 0, x: -20 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: 20 }}
+      transition={{ duration: 0.2 }}
+    >
+      {item.content}
+    </motion.div>
+  ))}
+</AnimatePresence>
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Web Audio API" icon="volume-2" href="/technical/web-audio-api">
+    Implement procedural sound generation for UI feedback
+  </Card>
+  <Card title="Performance Optimization" icon="zap" href="/technical/performance-optimization">
+    Learn bundle size and runtime optimization techniques
+  </Card>
+</CardGroup>
